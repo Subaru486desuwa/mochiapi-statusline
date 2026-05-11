@@ -37,19 +37,19 @@ const UNLIMITED_THRESHOLD = 1e7;
 function getNekoConfigDir(): string {
     if (platform() === 'win32') {
         const appData = process.env.APPDATA ?? join(homedir(), 'AppData', 'Roaming');
-        return join(appData, 'ccstatusline-nekoapi');
+        return join(appData, 'nekoapi-statusline');
     }
     const xdgConfig = process.env.XDG_CONFIG_HOME ?? join(homedir(), '.config');
-    return join(xdgConfig, 'ccstatusline-nekoapi');
+    return join(xdgConfig, 'nekoapi-statusline');
 }
 
 function getNekoCacheDir(): string {
     if (platform() === 'win32') {
         const localAppData = process.env.LOCALAPPDATA ?? join(homedir(), 'AppData', 'Local');
-        return join(localAppData, 'ccstatusline-nekoapi', 'cache');
+        return join(localAppData, 'nekoapi-statusline', 'cache');
     }
     const xdgCache = process.env.XDG_CACHE_HOME ?? join(homedir(), '.cache');
-    return join(xdgCache, 'ccstatusline-nekoapi');
+    return join(xdgCache, 'nekoapi-statusline');
 }
 
 export const NEKO_CONFIG_PATH = join(getNekoConfigDir(), 'config.json');

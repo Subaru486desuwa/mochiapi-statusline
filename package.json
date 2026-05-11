@@ -1,11 +1,11 @@
 {
-  "name": "ccstatusline-nekoapi",
+  "name": "nekoapi-statusline",
   "version": "0.1.0",
   "description": "ccstatusline fork with a NekoAPI balance widget (Claude Code status line for NekoAPI users)",
   "module": "src/ccstatusline.ts",
   "type": "module",
   "bin": {
-    "ccstatusline-nekoapi": "dist/ccstatusline.js"
+    "nekoapi-statusline": "dist/ccstatusline.js"
   },
   "files": [
     "dist/"

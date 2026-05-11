@@ -1,4 +1,4 @@
-# ccstatusline-nekoapi
+# nekoapi-statusline
 
 Fork of [sirmalloc/ccstatusline](https://github.com/sirmalloc/ccstatusline) with a `NekoAPI Balance` widget for the [NekoAPI](https://nekoapi.cc) gateway.
 
@@ -12,7 +12,7 @@ Fork of [sirmalloc/ccstatusline](https://github.com/sirmalloc/ccstatusline) with
   - `src/utils/nekoapi.ts`  HTTP client + on-disk config/cache helpers
   - `src/utils/nekoapi-setup.ts`  CLI setup flow
   - `src/widgets/NekoApiBalance.ts`  widget render logic
-- Package renamed to `ccstatusline-nekoapi`, binary `ccstatusline-nekoapi`
+- Package renamed to `nekoapi-statusline`, binary `nekoapi-statusline`
 
 Everything else (widgets, TUI, layout, powerline, themes) is untouched and tracks upstream.
 
@@ -28,39 +28,39 @@ Bearer auth (`Authorization: Bearer sk-...`). No cookies, no session.
 ## Install
 
 ```bash
-npm install -g ccstatusline-nekoapi
+npm install -g nekoapi-statusline
 ```
 
 ## Configure
 
 ```bash
 # Non-interactive (CI / one-liner from the nekoapi.cc web UI)
-NEKOAPI_BASE_URL=https://nekoapi.cc NEKOAPI_TOKEN=sk-xxxx ccstatusline-nekoapi --nekoapi-setup
+NEKOAPI_BASE_URL=https://nekoapi.cc NEKOAPI_TOKEN=sk-xxxx nekoapi-statusline --nekoapi-setup
 
 # Or interactive
-ccstatusline-nekoapi --nekoapi-setup
+nekoapi-statusline --nekoapi-setup
 ```
 
 Writes:
-- Linux/macOS: `~/.config/ccstatusline-nekoapi/config.json`
-- Windows: `%APPDATA%\ccstatusline-nekoapi\config.json`
+- Linux/macOS: `~/.config/nekoapi-statusline/config.json`
+- Windows: `%APPDATA%\nekoapi-statusline\config.json`
 
 Cache (refreshed in a detached subprocess every `refreshIntervalSec`, default 30s):
-- Linux/macOS: `~/.cache/ccstatusline-nekoapi/balance.json`
-- Windows: `%LOCALAPPDATA%\ccstatusline-nekoapi\cache\balance.json`
+- Linux/macOS: `~/.cache/nekoapi-statusline/balance.json`
+- Windows: `%LOCALAPPDATA%\nekoapi-statusline\cache\balance.json`
 
 ## Use in Claude Code
 
 `~/.claude/settings.json`:
 
 ```json
-{ "statusLine": { "type": "command", "command": "ccstatusline-nekoapi" } }
+{ "statusLine": { "type": "command", "command": "nekoapi-statusline" } }
 ```
 
 Run the TUI to add the widget to a line:
 
 ```bash
-ccstatusline-nekoapi
+nekoapi-statusline
 # → pick a line → Add widget → search "NekoAPI"
 ```
 
