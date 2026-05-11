@@ -27,42 +27,98 @@ Bearer auth (`Authorization: Bearer sk-...`). No cookies, no session.
 
 ## Install
 
+Requires **Node.js ≥ 14**. Not on npm yet — install from this GitHub repo:
+
 ```bash
-npm install -g nekoapi-statusline
+npm install -g github:Subaru486desuwa/nekoapi-statusline
 ```
 
-## Configure
+This pulls the repo and links the `nekoapi-statusline` binary. The pre-built `dist/ccstatusline.js` is committed, so no build step runs during install.
+
+### macOS / Linux
 
 ```bash
-# Non-interactive (CI / one-liner from the nekoapi.cc web UI)
+# 1. install
+npm install -g github:Subaru486desuwa/nekoapi-statusline
+
+# 2. configure (replace sk-xxxx with your NekoAPI token)
 NEKOAPI_BASE_URL=https://nekoapi.cc NEKOAPI_TOKEN=sk-xxxx nekoapi-statusline --nekoapi-setup
 
-# Or interactive
-nekoapi-statusline --nekoapi-setup
-```
-
-Writes:
-- Linux/macOS: `~/.config/nekoapi-statusline/config.json`
-- Windows: `%APPDATA%\nekoapi-statusline\config.json`
-
-Cache (refreshed in a detached subprocess every `refreshIntervalSec`, default 30s):
-- Linux/macOS: `~/.cache/nekoapi-statusline/balance.json`
-- Windows: `%LOCALAPPDATA%\nekoapi-statusline\cache\balance.json`
-
-## Use in Claude Code
-
-`~/.claude/settings.json`:
-
-```json
+# 3. wire it into Claude Code
+mkdir -p ~/.claude
+# If ~/.claude/settings.json already exists, edit it to add the statusLine field;
+# otherwise just create it:
+cat > ~/.claude/settings.json <<'JSON'
 { "statusLine": { "type": "command", "command": "nekoapi-statusline" } }
+JSON
+
+# 4. (optional) open the TUI to add the widget to a status line
+nekoapi-statusline
+# → pick a line → Add widget → search "NekoAPI" → choose display mode
 ```
 
-Run the TUI to add the widget to a line:
+### Windows (PowerShell)
+
+```powershell
+# 1. make sure Node.js ≥ 14 is installed (https://nodejs.org → LTS works)
+node --version
+
+# 2. install (run PowerShell as Administrator or use --prefix to avoid permission issues)
+npm install -g github:Subaru486desuwa/nekoapi-statusline
+
+# 3. configure
+$env:NEKOAPI_BASE_URL = "https://nekoapi.cc"
+$env:NEKOAPI_TOKEN    = "sk-xxxx"
+nekoapi-statusline --nekoapi-setup
+
+# 4. wire it into Claude Code (%USERPROFILE%\.claude\settings.json)
+$claudeDir = "$env:USERPROFILE\.claude"
+New-Item -ItemType Directory -Path $claudeDir -Force | Out-Null
+$cfg = "$claudeDir\settings.json"
+if (Test-Path $cfg) {
+    # merge into existing settings.json
+    $j = Get-Content $cfg -Raw | ConvertFrom-Json
+    $j | Add-Member -Force -NotePropertyName statusLine -NotePropertyValue (@{ type="command"; command="nekoapi-statusline" })
+    $j | ConvertTo-Json -Depth 10 | Set-Content $cfg -Encoding UTF8
+} else {
+    '{ "statusLine": { "type": "command", "command": "nekoapi-statusline" } }' | Set-Content $cfg -Encoding UTF8
+}
+
+# 5. (optional) open the TUI to customize widgets
+nekoapi-statusline
+```
+
+### Where files live
+
+| | macOS / Linux | Windows |
+|---|---|---|
+| Config | `~/.config/nekoapi-statusline/config.json` | `%APPDATA%\nekoapi-statusline\config.json` |
+| Balance cache | `~/.cache/nekoapi-statusline/balance.json` | `%LOCALAPPDATA%\nekoapi-statusline\cache\balance.json` |
+| Claude Code settings | `~/.claude/settings.json` | `%USERPROFILE%\.claude\settings.json` |
+
+Cache is refreshed in a detached subprocess every `refreshIntervalSec` (default 30s).
+
+### Upgrade / uninstall
 
 ```bash
-nekoapi-statusline
-# → pick a line → Add widget → search "NekoAPI"
+# upgrade — rerun the install command to pull latest main
+npm install -g github:Subaru486desuwa/nekoapi-statusline
+
+# uninstall
+npm uninstall -g nekoapi-statusline
 ```
+
+### Verifying the install
+
+```bash
+nekoapi-statusline --nekoapi-refresh
+# (no output on success; check the cache file)
+
+# pipe a fake Claude Code payload to see a rendered status line
+echo '{"hook_event_name":"Status","model":{"id":"claude-opus-4-7[1m]","display_name":"Opus 4.7"},"transcript_path":"/tmp/fake.jsonl","cwd":".","workspace":{"current_dir":".","project_dir":".","added_dirs":[]},"version":"2.1.80","output_style":{"name":"default"}}' | nekoapi-statusline
+```
+
+If you see `Neko: cfg?` the config file isn't found — re-run `--nekoapi-setup`. If you see `Neko: ...` it means the cache hasn't been populated yet — run `nekoapi-statusline --nekoapi-refresh` once, or wait 30s for the background refresher.
 
 ## Widget options
 

@@ -3,8 +3,8 @@ node_modules
 
 # output
 out
-dist
 typedoc
+# dist/ is committed so `npm install -g github:...` works without a build step
 *.tgz
 
 # code coverage
