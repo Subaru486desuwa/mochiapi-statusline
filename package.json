@@ -1,11 +1,11 @@
 {
-  "name": "ccstatusline",
-  "version": "2.2.13",
-  "description": "A customizable status line formatter for Claude Code CLI",
+  "name": "ccstatusline-nekoapi",
+  "version": "0.1.0",
+  "description": "ccstatusline fork with a NekoAPI balance widget (Claude Code status line for NekoAPI users)",
   "module": "src/ccstatusline.ts",
   "type": "module",
   "bin": {
-    "ccstatusline": "dist/ccstatusline.js"
+    "ccstatusline-nekoapi": "dist/ccstatusline.js"
   },
   "files": [
     "dist/"

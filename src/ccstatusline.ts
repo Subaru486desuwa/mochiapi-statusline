@@ -275,6 +275,18 @@ async function main() {
         return;
     }
 
+    if (process.argv.includes('--nekoapi-refresh')) {
+        const { refreshCli } = await import('./utils/nekoapi');
+        await refreshCli();
+        return;
+    }
+
+    if (process.argv.includes('--nekoapi-setup')) {
+        const { runNekoApiSetup } = await import('./utils/nekoapi-setup');
+        await runNekoApiSetup();
+        return;
+    }
+
     // Check if we're in a piped/non-TTY environment first
     if (!process.stdin.isTTY) {
         await ensureWindowsUtf8CodePage();
