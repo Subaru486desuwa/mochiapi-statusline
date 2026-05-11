@@ -27,19 +27,21 @@ Bearer auth (`Authorization: Bearer sk-...`). No cookies, no session.
 
 ## Install
 
-Requires **Node.js ≥ 14**. Not on npm yet — install from this GitHub repo:
+Requires **Node.js ≥ 14**. Not on npm yet — install from a GitHub source tarball:
 
 ```bash
-npm install -g github:Subaru486desuwa/nekoapi-statusline
+npm install -g https://github.com/Subaru486desuwa/nekoapi-statusline/archive/refs/heads/main.tar.gz
 ```
 
-This pulls the repo and links the `nekoapi-statusline` binary. The pre-built `dist/ccstatusline.js` is committed, so no build step runs during install.
+The pre-built `dist/ccstatusline.js` is committed in the repo, so the tarball install drops the binary straight in — no build step runs on your machine.
+
+> ℹ️ Avoid `npm install -g github:Subaru486desuwa/nekoapi-statusline`. npm's git-URL install path strips files outside `package.json#files` during its prepare step and ends up with a broken symlink. The tarball URL above is the reliable form.
 
 ### macOS / Linux
 
 ```bash
 # 1. install
-npm install -g github:Subaru486desuwa/nekoapi-statusline
+npm install -g https://github.com/Subaru486desuwa/nekoapi-statusline/archive/refs/heads/main.tar.gz
 
 # 2. configure (replace sk-xxxx with your NekoAPI token)
 NEKOAPI_BASE_URL=https://nekoapi.cc NEKOAPI_TOKEN=sk-xxxx nekoapi-statusline --nekoapi-setup
@@ -64,7 +66,7 @@ nekoapi-statusline
 node --version
 
 # 2. install (run PowerShell as Administrator or use --prefix to avoid permission issues)
-npm install -g github:Subaru486desuwa/nekoapi-statusline
+npm install -g https://github.com/Subaru486desuwa/nekoapi-statusline/archive/refs/heads/main.tar.gz
 
 # 3. configure
 $env:NEKOAPI_BASE_URL = "https://nekoapi.cc"
@@ -102,7 +104,7 @@ Cache is refreshed in a detached subprocess every `refreshIntervalSec` (default 
 
 ```bash
 # upgrade — rerun the install command to pull latest main
-npm install -g github:Subaru486desuwa/nekoapi-statusline
+npm install -g https://github.com/Subaru486desuwa/nekoapi-statusline/archive/refs/heads/main.tar.gz
 
 # uninstall
 npm uninstall -g nekoapi-statusline
