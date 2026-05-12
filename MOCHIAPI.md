@@ -104,12 +104,12 @@ If you see `Mochi: cfg?` the config file isn't found — re-run `--mochiapi-setu
 ## Widget options
 
 `metadata.mode` (string):
-- `combined` (default)  `$balance / $used`
-- `balance`  remaining only
-- `used`  consumed only
+- `balance` (default)  remaining only — `$X left`, or `∞` for unlimited tokens
+- `used`  consumed only — `$X used`
+- `combined`  both sides — `$X left · $Y used`, or `∞ · $Y used` for unlimited
 - `percent`  `used / total * 100`
 
-Unlimited tokens (`hard_limit_usd ≥ 1e7`) show `∞` (`balance`/`percent` modes) or `∞ · $used` (`combined`).
+> ℹ️ The dashboard API today exposes the **token's** hard limit and 30-day usage, not the user's **account balance**. Unlimited tokens (`hard_limit_usd ≥ 1e7`) therefore show `∞` in the balance/percent modes. When the dashboard exposes a real account-level balance endpoint, this widget will switch to showing that — until then, `balance` is the closest "remaining" signal we have.
 
 A trailing `*` means the cached value is older than `2 × refreshIntervalSec` — usually the network or the upstream went away. The widget keeps rendering the last good number while the background refresher retries.
 
@@ -119,7 +119,7 @@ The dracula three-line layout that `--mochiapi-setup` writes to `~/.config/ccsta
 
 - **Line 1**: `模型 / Sonnet 4.6 (1M context) / 上下文 / <tokens> / <branch> / <changes>` — branch+changes auto-hide outside a git repo (`hideNoGit` flag); the model name keeps its `(1M context)` suffix (`keepContext` flag, fork-only).
 - **Line 2**: `时段用量 / 5.0% / 时段 / 3h41m / 重置 / 1h18m / 周用量 / 12.0% / TPS / <t/s>`
-- **Line 3**: `Mochi / ∞ · $1.172` — MochiAPI Balance widget in combined mode.
+- **Line 3**: `Mochi / ∞` (unlimited token) or `Mochi / $5.86 left` (limited) — MochiAPI Balance widget in `balance` mode.
 
 To customize, launch the TUI: `mochiapi-statusline`. To inspect or hand-edit the JSON, look at `~/.config/ccstatusline/settings.json` (macOS / Linux) or `%USERPROFILE%\.config\ccstatusline\settings.json` (Windows). That file is the upstream ccstatusline TUI's settings — distinct from `~/.config/mochiapi-statusline/config.json` which holds your token.
 
