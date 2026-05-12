@@ -67050,20 +67050,43 @@ async function httpGet(url2, token, timeoutMs = 12000) {
     clearTimeout(t);
   }
 }
+function toNum(v) {
+  if (typeof v === "number" && Number.isFinite(v))
+    return v;
+  if (typeof v === "string" && v.trim() !== "" && Number.isFinite(Number(v)))
+    return Number(v);
+  return null;
+}
+function toBool(v) {
+  if (typeof v === "boolean")
+    return v;
+  return null;
+}
 async function fetchBalance(cfg) {
   const now2 = Date.now();
   try {
     const resp = await httpGet(`${cfg.baseUrl}/api/user/dashboard/balance`, cfg.token);
     const r = resp;
-    const raw = r.data?.user_quota_usd;
-    const userQuotaUsd = typeof raw === "number" && Number.isFinite(raw) ? raw : typeof raw === "string" && Number.isFinite(Number(raw)) ? Number(raw) : null;
-    return { fetchedAt: now2, ok: true, userQuotaUsd };
+    const d = r.data;
+    return {
+      fetchedAt: now2,
+      ok: true,
+      accountQuotaUsd: toNum(d?.user_quota_usd),
+      accountUsedUsd: toNum(d?.user_used_quota_usd),
+      todayUsedUsd: toNum(d?.today_used_quota_usd),
+      tokenRemainUsd: toNum(d?.token_remain_quota_usd),
+      tokenUnlimited: toBool(d?.token_unlimited)
+    };
   } catch (e) {
     const prev = readCache2();
     return {
       fetchedAt: now2,
       ok: false,
-      userQuotaUsd: prev?.userQuotaUsd ?? null,
+      accountQuotaUsd: prev?.accountQuotaUsd ?? null,
+      accountUsedUsd: prev?.accountUsedUsd ?? null,
+      todayUsedUsd: prev?.todayUsedUsd ?? null,
+      tokenRemainUsd: prev?.tokenRemainUsd ?? null,
+      tokenUnlimited: prev?.tokenUnlimited ?? null,
       error: e instanceof Error ? e.message : String(e)
     };
   }
@@ -67088,19 +67111,17 @@ function maybeRefreshInBackground(cfg, cache3) {
 function viewFromCache(cache3, cfg) {
   if (!cache3)
     return null;
+  const quota = cache3.accountQuotaUsd;
+  const used = cache3.accountUsedUsd;
+  const unlimited = typeof quota === "number" && quota >= UNLIMITED_THRESHOLD;
   let balanceUsd = null;
-  let unlimited = false;
-  const q = cache3.userQuotaUsd;
-  if (typeof q === "number") {
-    if (q >= UNLIMITED_THRESHOLD) {
-      unlimited = true;
-    } else {
-      balanceUsd = q;
-    }
+  if (!unlimited && typeof quota === "number" && typeof used === "number") {
+    balanceUsd = quota - used;
   }
   const stale = cfg !== null && Date.now() - cache3.fetchedAt > cfg.refreshIntervalSec * 2000;
   return {
     balanceUsd,
+    todayUsedUsd: cache3.todayUsedUsd,
     unlimited,
     stale,
     error: cache3.ok ? undefined : cache3.error
@@ -67178,6 +67199,60 @@ var init_MochiApiBalance = __esm(() => {
   init_mochiapi();
 });
 
+// src/widgets/MochiApiDailySpend.ts
+function fmtUsd2(v) {
+  if (v >= 1000)
+    return `$${v.toFixed(0)}`;
+  if (v >= 10)
+    return `$${v.toFixed(2)}`;
+  return `$${v.toFixed(3)}`;
+}
+
+class MochiApiDailySpendWidget {
+  getDefaultColor() {
+    return "magenta";
+  }
+  getDescription() {
+    return "MochiAPI today's spend (USD) from /api/user/dashboard/balance";
+  }
+  getDisplayName() {
+    return "MochiAPI Daily Spend";
+  }
+  getCategory() {
+    return "MochiAPI";
+  }
+  getEditorDisplay(_item) {
+    return { displayText: this.getDisplayName() };
+  }
+  render(item, context, _settings) {
+    const labeled = !item.rawValue;
+    if (context.isPreview) {
+      return labeled ? "Today: $0.247" : "$0.247";
+    }
+    const cfg = loadMochiConfig();
+    if (!cfg) {
+      return labeled ? "Today: cfg?" : "cfg?";
+    }
+    const cache3 = readCache2();
+    maybeRefreshInBackground(cfg, cache3);
+    const view = viewFromCache(cache3, cfg);
+    if (!view)
+      return labeled ? "Today: ..." : "...";
+    const body = view.todayUsedUsd === null ? "?" : fmtUsd2(view.todayUsedUsd);
+    const decorated = view.stale ? `${body}*` : body;
+    return labeled ? `Today: ${decorated}` : decorated;
+  }
+  supportsRawValue() {
+    return true;
+  }
+  supportsColors(_item) {
+    return true;
+  }
+}
+var init_MochiApiDailySpend = __esm(() => {
+  init_mochiapi();
+});
+
 // src/widgets/index.ts
 var init_widgets = __esm(async () => {
   init_Model();
@@ -67222,6 +67297,7 @@ var init_widgets = __esm(async () => {
   init_VimMode();
   init_CompactionCounter();
   init_MochiApiBalance();
+  init_MochiApiDailySpend();
   await __promiseAll([
     init_TokensInput(),
     init_TokensOutput(),
@@ -67333,7 +67409,8 @@ var init_widget_manifest = __esm(async () => {
     { type: "worktree-branch", create: () => new GitWorktreeBranchWidget },
     { type: "worktree-original-branch", create: () => new GitWorktreeOriginalBranchWidget },
     { type: "compaction-counter", create: () => new CompactionCounterWidget },
-    { type: "mochiapi-balance", create: () => new MochiApiBalanceWidget }
+    { type: "mochiapi-balance", create: () => new MochiApiBalanceWidget },
+    { type: "mochiapi-daily-spend", create: () => new MochiApiDailySpendWidget }
   ];
   LAYOUT_WIDGET_MANIFEST = [
     {
@@ -68316,7 +68393,9 @@ function buildRecommendedSettings() {
       ],
       [
         { id: "L3-lbl-mochi", type: "custom-text", color: "black", backgroundColor: "bgCyan", bold: true, customText: "用户余额" },
-        { id: "L3-mochi", type: MOCHI_BALANCE_TYPE, color: "black", backgroundColor: "bgCyan", bold: true, rawValue: true }
+        { id: "L3-mochi", type: MOCHI_BALANCE_TYPE, color: "black", backgroundColor: "bgCyan", bold: true, rawValue: true },
+        { id: "L3-lbl-today", type: "custom-text", color: "white", backgroundColor: "bgMagenta", bold: true, customText: "今日消耗" },
+        { id: "L3-today", type: MOCHI_DAILY_TYPE, color: "white", backgroundColor: "bgMagenta", bold: true, rawValue: true }
       ]
     ],
     flexMode: "full",
@@ -68386,7 +68465,9 @@ async function writeStatuslineSettings(opts) {
     existing.lines = [];
   existing.lines.push([
     { id: "L3-lbl-mochi", type: "custom-text", color: "black", backgroundColor: "bgCyan", bold: true, customText: "用户余额" },
-    { id: "L3-mochi", type: MOCHI_BALANCE_TYPE, color: "black", backgroundColor: "bgCyan", bold: true, rawValue: true }
+    { id: "L3-mochi", type: MOCHI_BALANCE_TYPE, color: "black", backgroundColor: "bgCyan", bold: true, rawValue: true },
+    { id: "L3-lbl-today", type: "custom-text", color: "white", backgroundColor: "bgMagenta", bold: true, customText: "今日消耗" },
+    { id: "L3-today", type: MOCHI_DAILY_TYPE, color: "white", backgroundColor: "bgMagenta", bold: true, rawValue: true }
   ]);
   await fs16.promises.writeFile(settingsPath2, JSON.stringify(existing, null, 2), "utf-8");
   return { result: "appended" };
@@ -68448,7 +68529,7 @@ async function runMochiApiSetup() {
   const cache3 = await fetchBalance(cfg);
   writeCache2(cache3);
   if (cache3.ok) {
-    console.log(`✓ balance probe OK (user_quota_usd=${cache3.userQuotaUsd})`);
+    console.log(`✓ balance probe OK (quota=$${cache3.accountQuotaUsd}, used=$${cache3.accountUsedUsd}, today=$${cache3.todayUsedUsd})`);
   } else {
     console.error(`✗ balance probe failed: ${cache3.error}`);
     process.exitCode = 2;
@@ -68489,7 +68570,7 @@ async function runMochiApiSetup() {
   console.log("");
   console.log("Setup complete. Open a new Claude Code session to see the status line.");
 }
-var STATUSLINE_COMMAND = "mochiapi-statusline", MOCHI_BALANCE_TYPE = "mochiapi-balance";
+var STATUSLINE_COMMAND = "mochiapi-statusline", MOCHI_BALANCE_TYPE = "mochiapi-balance", MOCHI_DAILY_TYPE = "mochiapi-daily-spend";
 var init_mochiapi_setup = __esm(async () => {
   init_mochiapi();
   await __promiseAll([

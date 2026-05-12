@@ -20,11 +20,21 @@ Everything else (widgets, TUI, layout, powerline, themes) is untouched and track
 
 | Path | Returns | Notes |
 |---|---|---|
-| `GET ${baseUrl}/api/user/dashboard/balance` | `{ data: { user_quota_usd } }` | account-level remaining balance in USD; unlimited accounts return a sentinel ≥ `1e7` |
+| `GET ${baseUrl}/api/user/dashboard/balance` | account-level fields + today's spend (see below) | one request feeds both widgets |
 
 Bearer auth (`Authorization: Bearer sk-...`). No cookies, no session.
 
-> Older builds (≤ `406b1d3`) also called `/v1/dashboard/billing/subscription` and `/v1/dashboard/billing/usage` to derive `balance = hard_limit_usd − used_usd`. Those token-level fields aren't the user's real balance, so we switched to the account endpoint above. Cache files from older builds keep loading — `viewFromCache` falls back to the legacy fields if `user_quota_usd` is missing.
+Response fields we read (snake-case from the API, mapped into the cache):
+
+| API field | Cache field | Used by |
+|---|---|---|
+| `data.user_quota_usd` | `accountQuotaUsd` | balance widget (total) |
+| `data.user_used_quota_usd` | `accountUsedUsd` | balance widget (account remaining = total − used) |
+| `data.today_used_quota_usd` | `todayUsedUsd` | daily-spend widget |
+| `data.token_remain_quota_usd` | `tokenRemainUsd` | (reserved, not yet rendered) |
+| `data.token_unlimited` | `tokenUnlimited` | (reserved, not yet rendered) |
+
+The balance widget renders `∞` when `accountQuotaUsd ≥ 1e7` (a sentinel for unlimited accounts).
 
 ## Install (one-shot)
 
@@ -104,11 +114,14 @@ If you see `Mochi: cfg?` the config file isn't found — re-run `--mochiapi-setu
 
 ## Widget options
 
-The widget renders the **account balance** (`data.user_quota_usd` from `/api/user/dashboard/balance`) as either `$X.XX` or `∞` (when the returned amount ≥ `1e7`). There are no display modes — the body is a single number.
+The fork ships two MochiAPI widgets, both fed from the same cached response:
 
-A trailing `*` means the cached value is older than `2 × refreshIntervalSec` — usually the network or the upstream went away. The widget keeps rendering the last good number while the background refresher retries.
+| Widget type | Renders | Default color |
+|---|---|---|
+| `mochiapi-balance` | account remaining balance — `$X.XX` or `∞` for unlimited accounts | cyan |
+| `mochiapi-daily-spend` | today's spend — `$X.XX` | magenta |
 
-> A daily-spend endpoint is on the dashboard's roadmap. When it lands, this widget will grow a "used today" row alongside the balance.
+Neither widget has display modes — each emits a single number. A trailing `*` means the cached value is older than `2 × refreshIntervalSec` (usually a transient network/upstream issue); the widget keeps rendering the last good value while the background refresher retries.
 
 ## What the default layout looks like
 
@@ -116,7 +129,7 @@ The dracula three-line layout that `--mochiapi-setup` writes to `~/.config/ccsta
 
 - **Line 1**: `模型 / Sonnet 4.6 (1M context) / 上下文 / <tokens> / <branch> / <changes>` — branch+changes auto-hide outside a git repo (`hideNoGit` flag); the model name keeps its `(1M context)` suffix (`keepContext` flag, fork-only).
 - **Line 2**: `时段用量 / 5.0% / 时段 / 3h41m / 重置 / 1h18m / 周用量 / 12.0% / TPS / <t/s>`
-- **Line 3**: `用户余额 / ∞` (unlimited token) or `用户余额 / $5.86` (limited) — MochiAPI Balance widget in `balance` mode.
+- **Line 3**: `用户余额 / $1.54 / 今日消耗 / $0.025` — `mochiapi-balance` widget (cyan, account remaining; `∞` for unlimited accounts) plus `mochiapi-daily-spend` widget (magenta, today's spend so far).
 
 To customize, launch the TUI: `mochiapi-statusline`. To inspect or hand-edit the JSON, look at `~/.config/ccstatusline/settings.json` (macOS / Linux) or `%USERPROFILE%\.config\ccstatusline\settings.json` (Windows). That file is the upstream ccstatusline TUI's settings — distinct from `~/.config/mochiapi-statusline/config.json` which holds your token.
 

@@ -23,8 +23,16 @@ export interface MochiApiConfig {
 export interface MochiApiCache {
     fetchedAt: number;
     ok: boolean;
-    /** Account balance from /api/user/dashboard/balance (data.user_quota_usd). */
-    userQuotaUsd: number | null;
+    /** Account total quota (USD) — data.user_quota_usd. */
+    accountQuotaUsd: number | null;
+    /** Account used (USD) — data.user_used_quota_usd. */
+    accountUsedUsd: number | null;
+    /** Today's spend (USD) — data.today_used_quota_usd. */
+    todayUsedUsd: number | null;
+    /** Current token remaining quota (USD) — data.token_remain_quota_usd. */
+    tokenRemainUsd: number | null;
+    /** Current token unlimited flag — data.token_unlimited. */
+    tokenUnlimited: boolean | null;
     error?: string;
 }
 
@@ -106,22 +114,53 @@ async function httpGet(url: string, token: string, timeoutMs = 12000): Promise<u
     }
 }
 
+function toNum(v: unknown): number | null {
+    if (typeof v === 'number' && Number.isFinite(v))
+        return v;
+    if (typeof v === 'string' && v.trim() !== '' && Number.isFinite(Number(v)))
+        return Number(v);
+    return null;
+}
+
+function toBool(v: unknown): boolean | null {
+    if (typeof v === 'boolean')
+        return v;
+    return null;
+}
+
 export async function fetchBalance(cfg: MochiApiConfig): Promise<MochiApiCache> {
     const now = Date.now();
     try {
         const resp = await httpGet(`${cfg.baseUrl}/api/user/dashboard/balance`, cfg.token);
-        const r = resp as { data?: { user_quota_usd?: unknown } };
-        const raw = r.data?.user_quota_usd;
-        const userQuotaUsd = typeof raw === 'number' && Number.isFinite(raw)
-            ? raw
-            : (typeof raw === 'string' && Number.isFinite(Number(raw)) ? Number(raw) : null);
-        return { fetchedAt: now, ok: true, userQuotaUsd };
+        const r = resp as {
+            data?: {
+                user_quota_usd?: unknown;
+                user_used_quota_usd?: unknown;
+                today_used_quota_usd?: unknown;
+                token_remain_quota_usd?: unknown;
+                token_unlimited?: unknown;
+            };
+        };
+        const d = r.data;
+        return {
+            fetchedAt: now,
+            ok: true,
+            accountQuotaUsd: toNum(d?.user_quota_usd),
+            accountUsedUsd: toNum(d?.user_used_quota_usd),
+            todayUsedUsd: toNum(d?.today_used_quota_usd),
+            tokenRemainUsd: toNum(d?.token_remain_quota_usd),
+            tokenUnlimited: toBool(d?.token_unlimited)
+        };
     } catch (e) {
         const prev = readCache();
         return {
             fetchedAt: now,
             ok: false,
-            userQuotaUsd: prev?.userQuotaUsd ?? null,
+            accountQuotaUsd: prev?.accountQuotaUsd ?? null,
+            accountUsedUsd: prev?.accountUsedUsd ?? null,
+            todayUsedUsd: prev?.todayUsedUsd ?? null,
+            tokenRemainUsd: prev?.tokenRemainUsd ?? null,
+            tokenUnlimited: prev?.tokenUnlimited ?? null,
             error: e instanceof Error ? e.message : String(e)
         };
     }
@@ -146,7 +185,11 @@ export function maybeRefreshInBackground(cfg: MochiApiConfig, cache: MochiApiCac
 }
 
 export interface MochiBalanceView {
+    /** Account remaining balance (USD) = accountQuotaUsd − accountUsedUsd, when both are present. */
     balanceUsd: number | null;
+    /** Today's spend (USD). */
+    todayUsedUsd: number | null;
+    /** Account is unlimited when the total quota is sentinel-large (≥ 1e7). */
     unlimited: boolean;
     stale: boolean;
     error?: string;
@@ -156,22 +199,20 @@ export function viewFromCache(cache: MochiApiCache | null, cfg: MochiApiConfig |
     if (!cache)
         return null;
 
-    let balanceUsd: number | null = null;
-    let unlimited = false;
+    const quota = cache.accountQuotaUsd;
+    const used = cache.accountUsedUsd;
+    const unlimited = typeof quota === 'number' && quota >= UNLIMITED_THRESHOLD;
 
-    const q = cache.userQuotaUsd;
-    if (typeof q === 'number') {
-        if (q >= UNLIMITED_THRESHOLD) {
-            unlimited = true;
-        } else {
-            balanceUsd = q;
-        }
+    let balanceUsd: number | null = null;
+    if (!unlimited && typeof quota === 'number' && typeof used === 'number') {
+        balanceUsd = quota - used;
     }
 
     const stale = cfg !== null && Date.now() - cache.fetchedAt > cfg.refreshIntervalSec * 2000;
 
     return {
         balanceUsd,
+        todayUsedUsd: cache.todayUsedUsd,
         unlimited,
         stale,
         error: cache.ok ? undefined : cache.error

@@ -23,6 +23,7 @@ function readEnv(name: string): string | undefined {
 
 const STATUSLINE_COMMAND = 'mochiapi-statusline';
 const MOCHI_BALANCE_TYPE = 'mochiapi-balance';
+const MOCHI_DAILY_TYPE = 'mochiapi-daily-spend';
 
 interface SetupOptions {
     skipStatusline?: boolean;
@@ -64,7 +65,9 @@ function buildRecommendedSettings(): unknown {
             ],
             [
                 { id: 'L3-lbl-mochi', type: 'custom-text', color: 'black', backgroundColor: 'bgCyan', bold: true, customText: '用户余额' },
-                { id: 'L3-mochi', type: MOCHI_BALANCE_TYPE, color: 'black', backgroundColor: 'bgCyan', bold: true, rawValue: true }
+                { id: 'L3-mochi', type: MOCHI_BALANCE_TYPE, color: 'black', backgroundColor: 'bgCyan', bold: true, rawValue: true },
+                { id: 'L3-lbl-today', type: 'custom-text', color: 'white', backgroundColor: 'bgMagenta', bold: true, customText: '今日消耗' },
+                { id: 'L3-today', type: MOCHI_DAILY_TYPE, color: 'white', backgroundColor: 'bgMagenta', bold: true, rawValue: true }
             ]
         ],
         flexMode: 'full',
@@ -148,7 +151,9 @@ async function writeStatuslineSettings(opts: SetupOptions): Promise<{ result: St
         existing.lines = [];
     (existing.lines).push([
         { id: 'L3-lbl-mochi', type: 'custom-text', color: 'black', backgroundColor: 'bgCyan', bold: true, customText: '用户余额' },
-        { id: 'L3-mochi', type: MOCHI_BALANCE_TYPE, color: 'black', backgroundColor: 'bgCyan', bold: true, rawValue: true }
+        { id: 'L3-mochi', type: MOCHI_BALANCE_TYPE, color: 'black', backgroundColor: 'bgCyan', bold: true, rawValue: true },
+        { id: 'L3-lbl-today', type: 'custom-text', color: 'white', backgroundColor: 'bgMagenta', bold: true, customText: '今日消耗' },
+        { id: 'L3-today', type: MOCHI_DAILY_TYPE, color: 'white', backgroundColor: 'bgMagenta', bold: true, rawValue: true }
     ]);
     await fs.promises.writeFile(settingsPath, JSON.stringify(existing, null, 2), 'utf-8');
     return { result: 'appended' };
@@ -220,7 +225,7 @@ export async function runMochiApiSetup(): Promise<void> {
     const cache = await fetchBalance(cfg);
     writeCache(cache);
     if (cache.ok) {
-        console.log(`✓ balance probe OK (user_quota_usd=${cache.userQuotaUsd})`);
+        console.log(`✓ balance probe OK (quota=$${cache.accountQuotaUsd}, used=$${cache.accountUsedUsd}, today=$${cache.todayUsedUsd})`);
     } else {
         console.error(`✗ balance probe failed: ${cache.error}`);
         process.exitCode = 2;
