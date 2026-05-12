@@ -35,7 +35,7 @@ Requires **Node.js ≥ 14**. Two commands total — install the package, then ru
 
 ```bash
 # 1. install (same command on all three OSes)
-npm install -g https://github.com/Subaru486desuwa/mochiapi-statusline/archive/refs/heads/main.tar.gz
+npm install -g github:Subaru486desuwa/mochiapi-statusline
 
 # 2. interactive setup — paste your MochiAPI token when prompted
 mochiapi-statusline --mochiapi-setup
@@ -50,9 +50,9 @@ Grab your token from <https://mochiapi.com/dashboard> first; the setup will past
 
 Open a fresh Claude Code session and the status line should light up.
 
-The pre-built `dist/ccstatusline.js` is committed in the repo, so the tarball install drops the binary straight in — no build step runs on your machine.
+The pre-built `dist/ccstatusline.js` is committed in the repo and the package declares no `prepare` script, so neither install path triggers a local build — the bundled binary drops straight in.
 
-> ℹ️ Avoid `npm install -g github:Subaru486desuwa/mochiapi-statusline`. npm's git-URL install path strips files outside `package.json#files` during its prepare step and ends up with a broken symlink. The tarball URL above is the reliable form.
+> ℹ️ **Alternative form:** `npm install -g https://github.com/Subaru486desuwa/mochiapi-statusline/archive/refs/heads/main.tar.gz`. Equivalent — tarball is a smaller download, github: shorthand clones the repo.
 
 ### Non-interactive / scripted
 
@@ -83,7 +83,7 @@ Cache is refreshed in a detached subprocess every `refreshIntervalSec` (default 
 
 ```bash
 # upgrade — rerun the install command to pull latest main
-npm install -g https://github.com/Subaru486desuwa/mochiapi-statusline/archive/refs/heads/main.tar.gz
+npm install -g github:Subaru486desuwa/mochiapi-statusline
 
 # uninstall
 npm uninstall -g mochiapi-statusline
