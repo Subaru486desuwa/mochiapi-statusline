@@ -61,6 +61,8 @@ nekoapi-statusline
 
 ### Windows (PowerShell)
 
+> **Prerequisite for the powerline look.** The recommended layout below uses Nerd Font glyphs (``, ``) as Powerline separators. Without a Nerd Font, your terminal renders them as `?` boxes. Install one (`winget install DEVCOM.JetBrainsMonoNerdFont`) and set it as the font face in Windows Terminal / your terminal of choice. See [docs/WINDOWS.md § Powerline Font Support](docs/WINDOWS.md#powerline-font-support) for the full font setup.
+
 ```powershell
 # 1. make sure Node.js ≥ 14 is installed (https://nodejs.org → LTS works)
 node --version
@@ -133,6 +135,90 @@ If you see `Neko: cfg?` the config file isn't found — re-run `--nekoapi-setup`
 Unlimited tokens (`hard_limit_usd ≥ 1e7`) show `∞` (`balance`/`percent` modes) or `∞ · $used` (`combined`).
 
 A trailing `*` means the cached value is older than `2 × refreshIntervalSec` — usually the network or the upstream went away. The widget keeps rendering the last good number while the background refresher retries.
+
+## Recommended layout (dracula powerline + NekoAPI)
+
+The "screenshot" layout from the README — three lines, dracula colors, NekoAPI balance on its own row. Drop this into your ccstatusline settings file (path below).
+
+| OS | Path |
+|---|---|
+| macOS / Linux | `~/.config/ccstatusline/settings.json` |
+| Windows | `%USERPROFILE%\.config\ccstatusline\settings.json` |
+
+> ℹ️ This is the upstream ccstatusline TUI's settings file (not the NekoAPI token config in `~/.config/nekoapi-statusline/`). They're separate.
+
+The layout:
+- **Line 1**: `模型 / Opus 4.7 (1M context) / 上下文 / <tokens> / <branch> / <changes>`
+- **Line 2**: `时段用量 / 5.0% / 时段 / 3h41m / 重置 / 1h18m / 周用量 / 12.0% / TPS / <t/s>`
+- **Line 3**: `Neko / ∞ · $1.172` (NekoAPI Balance widget, combined mode)
+
+<details>
+<summary>Full <code>settings.json</code></summary>
+
+```json
+{
+  "version": 3,
+  "lines": [
+    [
+      { "id": "L1-lbl-model", "type": "custom-text", "color": "white", "backgroundColor": "bgBlue", "bold": true, "customText": "模型" },
+      { "id": "L1-model", "type": "model", "color": "white", "backgroundColor": "bgBlue", "bold": true, "rawValue": true },
+      { "id": "L1-lbl-ctx", "type": "custom-text", "color": "white", "backgroundColor": "bgBrightBlack", "bold": true, "customText": "上下文" },
+      { "id": "L1-ctx", "type": "context-length", "color": "white", "backgroundColor": "bgBrightBlack", "bold": true, "rawValue": true },
+      { "id": "L1-branch", "type": "git-branch", "color": "white", "backgroundColor": "bgMagenta", "bold": true, "rawValue": true },
+      { "id": "L1-changes", "type": "git-changes", "color": "white", "backgroundColor": "bgRed", "bold": true, "rawValue": true }
+    ],
+    [
+      { "id": "L2-lbl-used", "type": "custom-text", "color": "black", "backgroundColor": "bgGreen", "bold": true, "customText": "时段用量" },
+      { "id": "L2-used", "type": "session-usage", "color": "black", "backgroundColor": "bgGreen", "bold": true, "rawValue": true },
+      { "id": "L2-lbl-block", "type": "custom-text", "color": "white", "backgroundColor": "bgBrightBlack", "bold": true, "customText": "时段" },
+      { "id": "L2-block", "type": "block-timer", "color": "white", "backgroundColor": "bgBrightBlack", "bold": true, "rawValue": true, "metadata": { "compact": "true" } },
+      { "id": "L2-lbl-reset", "type": "custom-text", "color": "black", "backgroundColor": "bgGreen", "bold": true, "customText": "重置" },
+      { "id": "L2-reset", "type": "reset-timer", "color": "black", "backgroundColor": "bgGreen", "bold": true, "rawValue": true, "metadata": { "compact": "true" } },
+      { "id": "L2-lbl-weekly", "type": "custom-text", "color": "white", "backgroundColor": "bgMagenta", "bold": true, "customText": "周用量" },
+      { "id": "L2-weekly", "type": "weekly-usage", "color": "white", "backgroundColor": "bgMagenta", "bold": true, "rawValue": true },
+      { "id": "L2-lbl-sum", "type": "custom-text", "color": "white", "backgroundColor": "bgRed", "bold": true, "customText": "TPS" },
+      { "id": "L2-sum", "type": "total-speed", "color": "white", "backgroundColor": "bgRed", "bold": true, "rawValue": true }
+    ],
+    [
+      { "id": "L3-lbl-neko", "type": "custom-text", "color": "black", "backgroundColor": "bgCyan", "bold": true, "customText": "Neko" },
+      { "id": "L3-neko", "type": "nekoapi-balance", "color": "black", "backgroundColor": "bgCyan", "bold": true, "rawValue": true, "metadata": { "mode": "combined" } }
+    ]
+  ],
+  "flexMode": "full",
+  "compactThreshold": 60,
+  "colorLevel": 2,
+  "defaultPadding": " ",
+  "inheritSeparatorColors": false,
+  "globalBold": false,
+  "minimalistMode": false,
+  "powerline": {
+    "enabled": true,
+    "separators": ["", ""],
+    "separatorInvertBackground": [true, true],
+    "startCaps": ["", ""],
+    "endCaps": ["", ""],
+    "theme": "dracula",
+    "autoAlign": false,
+    "continueThemeAcrossLines": false
+  }
+}
+```
+
+</details>
+
+After saving, smoke-test it without launching Claude Code:
+
+```bash
+# macOS / Linux
+echo '{"session_id":"test","model":{"id":"claude-opus-4-7","display_name":"Opus 4.7 (1M context)"},"workspace":{"current_dir":".","project_dir":"."},"cost":{"total_cost_usd":1.172},"transcript_path":"/tmp/nonexistent","output_style":{"name":"default"}}' | nekoapi-statusline
+```
+
+```powershell
+# Windows PowerShell
+'{"session_id":"test","model":{"id":"claude-opus-4-7","display_name":"Opus 4.7 (1M context)"},"workspace":{"current_dir":".","project_dir":"."},"cost":{"total_cost_usd":1.172},"transcript_path":"NUL","output_style":{"name":"default"}}' | nekoapi-statusline
+```
+
+You should see three Powerline-styled rows in dracula colors. If separators show as `?` your terminal isn't using a Nerd Font — fix that first.
 
 ## Cross-platform notes
 
