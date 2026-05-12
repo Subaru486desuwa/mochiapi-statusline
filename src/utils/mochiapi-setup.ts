@@ -63,7 +63,7 @@ function buildRecommendedSettings(): unknown {
                 { id: 'L2-sum', type: 'total-speed', color: 'white', backgroundColor: 'bgRed', bold: true, rawValue: true }
             ],
             [
-                { id: 'L3-lbl-mochi', type: 'custom-text', color: 'black', backgroundColor: 'bgCyan', bold: true, customText: 'Mochi' },
+                { id: 'L3-lbl-mochi', type: 'custom-text', color: 'black', backgroundColor: 'bgCyan', bold: true, customText: '用户余额' },
                 { id: 'L3-mochi', type: MOCHI_BALANCE_TYPE, color: 'black', backgroundColor: 'bgCyan', bold: true, rawValue: true, metadata: { mode: 'balance' } }
             ]
         ],
@@ -147,7 +147,7 @@ async function writeStatuslineSettings(opts: SetupOptions): Promise<{ result: St
     if (!Array.isArray(existing.lines))
         existing.lines = [];
     (existing.lines).push([
-        { id: 'L3-lbl-mochi', type: 'custom-text', color: 'black', backgroundColor: 'bgCyan', bold: true, customText: 'Mochi' },
+        { id: 'L3-lbl-mochi', type: 'custom-text', color: 'black', backgroundColor: 'bgCyan', bold: true, customText: '用户余额' },
         { id: 'L3-mochi', type: MOCHI_BALANCE_TYPE, color: 'black', backgroundColor: 'bgCyan', bold: true, rawValue: true, metadata: { mode: 'balance' } }
     ]);
     await fs.promises.writeFile(settingsPath, JSON.stringify(existing, null, 2), 'utf-8');

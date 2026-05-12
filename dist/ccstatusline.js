@@ -67166,7 +67166,7 @@ class MochiApiBalanceWidget {
     const mode = item.metadata?.mode ?? "combined";
     const labeled = !item.rawValue;
     if (context.isPreview) {
-      const stub = mode === "balance" ? "$8.42 left" : mode === "used" ? "$1.58 used" : mode === "percent" ? "15.8%" : "$8.42 left · $1.58 used";
+      const stub = mode === "balance" ? "$8.42" : mode === "used" ? "$1.58 used" : mode === "percent" ? "15.8%" : "$8.42 left · $1.58 used";
       return labeled ? `Mochi: ${stub}` : stub;
     }
     const cfg = loadMochiConfig();
@@ -67185,7 +67185,7 @@ class MochiApiBalanceWidget {
       if (view.unlimited) {
         body = "∞";
       } else {
-        body = view.balanceUsd === null ? "?" : `${fmtUsd(view.balanceUsd)} left`;
+        body = view.balanceUsd === null ? "?" : fmtUsd(view.balanceUsd);
       }
     } else if (mode === "percent") {
       if (view.unlimited) {
@@ -68353,7 +68353,7 @@ function buildRecommendedSettings() {
         { id: "L2-sum", type: "total-speed", color: "white", backgroundColor: "bgRed", bold: true, rawValue: true }
       ],
       [
-        { id: "L3-lbl-mochi", type: "custom-text", color: "black", backgroundColor: "bgCyan", bold: true, customText: "Mochi" },
+        { id: "L3-lbl-mochi", type: "custom-text", color: "black", backgroundColor: "bgCyan", bold: true, customText: "用户余额" },
         { id: "L3-mochi", type: MOCHI_BALANCE_TYPE, color: "black", backgroundColor: "bgCyan", bold: true, rawValue: true, metadata: { mode: "balance" } }
       ]
     ],
@@ -68423,7 +68423,7 @@ async function writeStatuslineSettings(opts) {
   if (!Array.isArray(existing.lines))
     existing.lines = [];
   existing.lines.push([
-    { id: "L3-lbl-mochi", type: "custom-text", color: "black", backgroundColor: "bgCyan", bold: true, customText: "Mochi" },
+    { id: "L3-lbl-mochi", type: "custom-text", color: "black", backgroundColor: "bgCyan", bold: true, customText: "用户余额" },
     { id: "L3-mochi", type: MOCHI_BALANCE_TYPE, color: "black", backgroundColor: "bgCyan", bold: true, rawValue: true, metadata: { mode: "balance" } }
   ]);
   await fs16.promises.writeFile(settingsPath2, JSON.stringify(existing, null, 2), "utf-8");

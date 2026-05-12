@@ -37,7 +37,7 @@ export class MochiApiBalanceWidget implements Widget {
         const labeled = !item.rawValue;
 
         if (context.isPreview) {
-            const stub = mode === 'balance' ? '$8.42 left'
+            const stub = mode === 'balance' ? '$8.42'
                 : mode === 'used' ? '$1.58 used'
                     : mode === 'percent' ? '15.8%'
                         : '$8.42 left · $1.58 used';
@@ -61,7 +61,7 @@ export class MochiApiBalanceWidget implements Widget {
             if (view.unlimited) {
                 body = '∞';
             } else {
-                body = view.balanceUsd === null ? '?' : `${fmtUsd(view.balanceUsd)} left`;
+                body = view.balanceUsd === null ? '?' : fmtUsd(view.balanceUsd);
             }
         } else if (mode === 'percent') {
             if (view.unlimited) {

@@ -104,7 +104,7 @@ If you see `Mochi: cfg?` the config file isn't found — re-run `--mochiapi-setu
 ## Widget options
 
 `metadata.mode` (string):
-- `balance` (default)  remaining only — `$X left`, or `∞` for unlimited tokens
+- `balance` (default)  remaining only — `$X`, or `∞` for unlimited tokens
 - `used`  consumed only — `$X used`
 - `combined`  both sides — `$X left · $Y used`, or `∞ · $Y used` for unlimited
 - `percent`  `used / total * 100`
@@ -119,7 +119,7 @@ The dracula three-line layout that `--mochiapi-setup` writes to `~/.config/ccsta
 
 - **Line 1**: `模型 / Sonnet 4.6 (1M context) / 上下文 / <tokens> / <branch> / <changes>` — branch+changes auto-hide outside a git repo (`hideNoGit` flag); the model name keeps its `(1M context)` suffix (`keepContext` flag, fork-only).
 - **Line 2**: `时段用量 / 5.0% / 时段 / 3h41m / 重置 / 1h18m / 周用量 / 12.0% / TPS / <t/s>`
-- **Line 3**: `Mochi / ∞` (unlimited token) or `Mochi / $5.86 left` (limited) — MochiAPI Balance widget in `balance` mode.
+- **Line 3**: `用户余额 / ∞` (unlimited token) or `用户余额 / $5.86` (limited) — MochiAPI Balance widget in `balance` mode.
 
 To customize, launch the TUI: `mochiapi-statusline`. To inspect or hand-edit the JSON, look at `~/.config/ccstatusline/settings.json` (macOS / Linux) or `%USERPROFILE%\.config\ccstatusline\settings.json` (Windows). That file is the upstream ccstatusline TUI's settings — distinct from `~/.config/mochiapi-statusline/config.json` which holds your token.
 
