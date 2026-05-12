@@ -1,6 +1,6 @@
 # mochiapi-statusline
 
-Fork of [sirmalloc/ccstatusline](https://github.com/sirmalloc/ccstatusline) with a `MochiAPI Balance` widget for the [MochiAPI](https://mochiapi.cc) gateway.
+Fork of [sirmalloc/ccstatusline](https://github.com/sirmalloc/ccstatusline) with a `MochiAPI Balance` widget for the [MochiAPI](https://mochiapi.com) gateway.
 
 ## What changed vs upstream
 
@@ -44,7 +44,7 @@ The pre-built `dist/ccstatusline.js` is committed in the repo, so the tarball in
 npm install -g https://github.com/Subaru486desuwa/mochiapi-statusline/archive/refs/heads/main.tar.gz
 
 # 2. configure (replace sk-xxxx with your MochiAPI token)
-MOCHIAPI_BASE_URL=https://mochiapi.cc MOCHIAPI_TOKEN=sk-xxxx mochiapi-statusline --mochiapi-setup
+MOCHIAPI_BASE_URL=https://mochiapi.com MOCHIAPI_TOKEN=sk-xxxx mochiapi-statusline --mochiapi-setup
 
 # 3. wire it into Claude Code
 mkdir -p ~/.claude
@@ -71,7 +71,7 @@ node --version
 npm install -g https://github.com/Subaru486desuwa/mochiapi-statusline/archive/refs/heads/main.tar.gz
 
 # 3. configure
-$env:MOCHIAPI_BASE_URL = "https://mochiapi.cc"
+$env:MOCHIAPI_BASE_URL = "https://mochiapi.com"
 $env:MOCHIAPI_TOKEN    = "sk-xxxx"
 mochiapi-statusline --mochiapi-setup
 

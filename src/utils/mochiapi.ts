@@ -30,7 +30,7 @@ export interface MochiApiCache {
     error?: string;
 }
 
-const DEFAULT_BASE_URL = 'https://mochiapi.cc';
+const DEFAULT_BASE_URL = 'https://mochiapi.com';
 const DEFAULT_INTERVAL = 30;
 const UNLIMITED_THRESHOLD = 1e7;
 

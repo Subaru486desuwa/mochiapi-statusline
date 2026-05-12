@@ -67120,7 +67120,7 @@ async function refreshCli() {
   const cache3 = await fetchBalance(cfg);
   writeCache2(cache3);
 }
-var DEFAULT_BASE_URL = "https://mochiapi.cc", DEFAULT_INTERVAL = 30, UNLIMITED_THRESHOLD = 1e7, MOCHI_CONFIG_PATH, MOCHI_CACHE_PATH;
+var DEFAULT_BASE_URL = "https://mochiapi.com", DEFAULT_INTERVAL = 30, UNLIMITED_THRESHOLD = 1e7, MOCHI_CONFIG_PATH, MOCHI_CACHE_PATH;
 var init_mochiapi = __esm(() => {
   MOCHI_CONFIG_PATH = join4(getMochiConfigDir(), "config.json");
   MOCHI_CACHE_PATH = join4(getMochiCacheDir(), "balance.json");
@@ -68308,7 +68308,7 @@ async function runMochiApiSetup() {
   const envBase = readEnv("MOCHIAPI_BASE_URL");
   const envInterval = readEnv("MOCHIAPI_REFRESH_SEC");
   let token = envToken;
-  let baseUrl = envBase ?? "https://mochiapi.cc";
+  let baseUrl = envBase ?? "https://mochiapi.com";
   let refresh = envInterval ? Number(envInterval) : 30;
   if (!token) {
     const existing = loadMochiConfig();

@@ -19,7 +19,7 @@ export async function runMochiApiSetup(): Promise<void> {
     const envInterval = readEnv('MOCHIAPI_REFRESH_SEC');
 
     let token = envToken;
-    let baseUrl = envBase ?? 'https://mochiapi.cc';
+    let baseUrl = envBase ?? 'https://mochiapi.com';
     let refresh = envInterval ? Number(envInterval) : 30;
 
     if (!token) {
