@@ -6,11 +6,11 @@ import type {
     WidgetItem
 } from '../types/Widget';
 import {
-    loadNekoConfig,
+    loadMochiConfig,
     maybeRefreshInBackground,
     readCache,
     viewFromCache
-} from '../utils/nekoapi';
+} from '../utils/mochiapi';
 
 type DisplayMode = 'balance' | 'used' | 'combined' | 'percent';
 
@@ -22,11 +22,11 @@ function fmtUsd(v: number): string {
     return `$${v.toFixed(3)}`;
 }
 
-export class NekoApiBalanceWidget implements Widget {
+export class MochiApiBalanceWidget implements Widget {
     getDefaultColor(): string { return 'cyan'; }
-    getDescription(): string { return 'NekoAPI token balance / usage from /v1/dashboard/billing/*'; }
-    getDisplayName(): string { return 'NekoAPI Balance'; }
-    getCategory(): string { return 'NekoAPI'; }
+    getDescription(): string { return 'MochiAPI token balance / usage from /v1/dashboard/billing/*'; }
+    getDisplayName(): string { return 'MochiAPI Balance'; }
+    getCategory(): string { return 'MochiAPI'; }
 
     getEditorDisplay(_item: WidgetItem): WidgetEditorDisplay {
         return { displayText: this.getDisplayName() };
@@ -41,18 +41,18 @@ export class NekoApiBalanceWidget implements Widget {
                 : mode === 'used' ? '$1.58'
                     : mode === 'percent' ? '15.8%'
                         : '$8.42 / $1.58';
-            return labeled ? `Neko: ${stub}` : stub;
+            return labeled ? `Mochi: ${stub}` : stub;
         }
 
-        const cfg = loadNekoConfig();
+        const cfg = loadMochiConfig();
         if (!cfg) {
-            return labeled ? 'Neko: cfg?' : 'cfg?';
+            return labeled ? 'Mochi: cfg?' : 'cfg?';
         }
         const cache = readCache();
         maybeRefreshInBackground(cfg, cache);
         const view = viewFromCache(cache, cfg);
         if (!view)
-            return labeled ? 'Neko: ...' : '...';
+            return labeled ? 'Mochi: ...' : '...';
 
         let body: string;
         if (mode === 'used') {
@@ -76,7 +76,7 @@ export class NekoApiBalanceWidget implements Widget {
         }
 
         const decorated = view.stale ? `${body}*` : body;
-        return labeled ? `Neko: ${decorated}` : decorated;
+        return labeled ? `Mochi: ${decorated}` : decorated;
     }
 
     supportsRawValue(): boolean { return true; }

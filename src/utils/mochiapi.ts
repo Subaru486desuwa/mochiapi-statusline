@@ -14,13 +14,13 @@ import {
     join
 } from 'path';
 
-export interface NekoApiConfig {
+export interface MochiApiConfig {
     baseUrl: string;
     token: string;
     refreshIntervalSec: number;
 }
 
-export interface NekoApiCache {
+export interface MochiApiCache {
     fetchedAt: number;
     ok: boolean;
     hardLimitUsd: number | null;
@@ -30,36 +30,36 @@ export interface NekoApiCache {
     error?: string;
 }
 
-const DEFAULT_BASE_URL = 'https://nekoapi.cc';
+const DEFAULT_BASE_URL = 'https://mochiapi.cc';
 const DEFAULT_INTERVAL = 30;
 const UNLIMITED_THRESHOLD = 1e7;
 
-function getNekoConfigDir(): string {
+function getMochiConfigDir(): string {
     if (platform() === 'win32') {
         const appData = process.env.APPDATA ?? join(homedir(), 'AppData', 'Roaming');
-        return join(appData, 'nekoapi-statusline');
+        return join(appData, 'mochiapi-statusline');
     }
     const xdgConfig = process.env.XDG_CONFIG_HOME ?? join(homedir(), '.config');
-    return join(xdgConfig, 'nekoapi-statusline');
+    return join(xdgConfig, 'mochiapi-statusline');
 }
 
-function getNekoCacheDir(): string {
+function getMochiCacheDir(): string {
     if (platform() === 'win32') {
         const localAppData = process.env.LOCALAPPDATA ?? join(homedir(), 'AppData', 'Local');
-        return join(localAppData, 'nekoapi-statusline', 'cache');
+        return join(localAppData, 'mochiapi-statusline', 'cache');
     }
     const xdgCache = process.env.XDG_CACHE_HOME ?? join(homedir(), '.cache');
-    return join(xdgCache, 'nekoapi-statusline');
+    return join(xdgCache, 'mochiapi-statusline');
 }
 
-export const NEKO_CONFIG_PATH = join(getNekoConfigDir(), 'config.json');
-export const NEKO_CACHE_PATH = join(getNekoCacheDir(), 'balance.json');
+export const MOCHI_CONFIG_PATH = join(getMochiConfigDir(), 'config.json');
+export const MOCHI_CACHE_PATH = join(getMochiCacheDir(), 'balance.json');
 
-export function loadNekoConfig(): NekoApiConfig | null {
-    if (!existsSync(NEKO_CONFIG_PATH))
+export function loadMochiConfig(): MochiApiConfig | null {
+    if (!existsSync(MOCHI_CONFIG_PATH))
         return null;
     try {
-        const raw = JSON.parse(readFileSync(NEKO_CONFIG_PATH, 'utf8')) as Partial<NekoApiConfig>;
+        const raw = JSON.parse(readFileSync(MOCHI_CONFIG_PATH, 'utf8')) as Partial<MochiApiConfig>;
         if (!raw.token)
             return null;
         return {
@@ -72,24 +72,24 @@ export function loadNekoConfig(): NekoApiConfig | null {
     }
 }
 
-export function saveNekoConfig(cfg: NekoApiConfig): void {
-    mkdirSync(dirname(NEKO_CONFIG_PATH), { recursive: true });
-    writeFileSync(NEKO_CONFIG_PATH, JSON.stringify(cfg, null, 2));
+export function saveMochiConfig(cfg: MochiApiConfig): void {
+    mkdirSync(dirname(MOCHI_CONFIG_PATH), { recursive: true });
+    writeFileSync(MOCHI_CONFIG_PATH, JSON.stringify(cfg, null, 2));
 }
 
-export function readCache(): NekoApiCache | null {
-    if (!existsSync(NEKO_CACHE_PATH))
+export function readCache(): MochiApiCache | null {
+    if (!existsSync(MOCHI_CACHE_PATH))
         return null;
     try {
-        return JSON.parse(readFileSync(NEKO_CACHE_PATH, 'utf8')) as NekoApiCache;
+        return JSON.parse(readFileSync(MOCHI_CACHE_PATH, 'utf8')) as MochiApiCache;
     } catch {
         return null;
     }
 }
 
-export function writeCache(cache: NekoApiCache): void {
-    mkdirSync(dirname(NEKO_CACHE_PATH), { recursive: true });
-    writeFileSync(NEKO_CACHE_PATH, JSON.stringify(cache));
+export function writeCache(cache: MochiApiCache): void {
+    mkdirSync(dirname(MOCHI_CACHE_PATH), { recursive: true });
+    writeFileSync(MOCHI_CACHE_PATH, JSON.stringify(cache));
 }
 
 function ymd(d: Date): string {
@@ -115,7 +115,7 @@ async function httpGet(url: string, token: string, timeoutMs = 12000): Promise<u
     }
 }
 
-export async function fetchBalance(cfg: NekoApiConfig): Promise<NekoApiCache> {
+export async function fetchBalance(cfg: MochiApiConfig): Promise<MochiApiCache> {
     const now = Date.now();
     const today = new Date();
     const thirtyAgo = new Date(today.getTime() - 30 * 86_400_000);
@@ -151,25 +151,25 @@ export async function fetchBalance(cfg: NekoApiConfig): Promise<NekoApiCache> {
     }
 }
 
-export function maybeRefreshInBackground(cfg: NekoApiConfig, cache: NekoApiCache | null): void {
+export function maybeRefreshInBackground(cfg: MochiApiConfig, cache: MochiApiCache | null): void {
     const stale = !cache || Date.now() - cache.fetchedAt > cfg.refreshIntervalSec * 1000;
     if (!stale)
         return;
-    if (process.env.CCSL_NEKOAPI_REFRESHING === '1')
+    if (process.env.CCSL_MOCHIAPI_REFRESHING === '1')
         return;
     const argv0 = process.execPath;
     const entry = process.argv[1];
     if (!entry)
         return;
-    const child = spawn(argv0, [entry, '--nekoapi-refresh'], {
+    const child = spawn(argv0, [entry, '--mochiapi-refresh'], {
         detached: true,
         stdio: 'ignore',
-        env: { ...process.env, CCSL_NEKOAPI_REFRESHING: '1' }
+        env: { ...process.env, CCSL_MOCHIAPI_REFRESHING: '1' }
     });
     child.unref();
 }
 
-export interface NekoBalanceView {
+export interface MochiBalanceView {
     balanceUsd: number | null;
     usedUsd: number | null;
     totalUsd: number | null;
@@ -178,7 +178,7 @@ export interface NekoBalanceView {
     error?: string;
 }
 
-export function viewFromCache(cache: NekoApiCache | null, cfg: NekoApiConfig | null): NekoBalanceView | null {
+export function viewFromCache(cache: MochiApiCache | null, cfg: MochiApiConfig | null): MochiBalanceView | null {
     if (!cache)
         return null;
     const hard = cache.hardLimitUsd;
@@ -199,7 +199,7 @@ export function viewFromCache(cache: NekoApiCache | null, cfg: NekoApiConfig | n
 }
 
 export async function refreshCli(): Promise<void> {
-    const cfg = loadNekoConfig();
+    const cfg = loadMochiConfig();
     if (!cfg)
         return;
     const cache = await fetchBalance(cfg);

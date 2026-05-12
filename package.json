@@ -1,11 +1,11 @@
 {
-  "name": "nekoapi-statusline",
+  "name": "mochiapi-statusline",
   "version": "0.1.0",
-  "description": "ccstatusline fork with a NekoAPI balance widget (Claude Code status line for NekoAPI users)",
+  "description": "ccstatusline fork with a MochiAPI balance widget (Claude Code status line for MochiAPI users)",
   "module": "src/ccstatusline.ts",
   "type": "module",
   "bin": {
-    "nekoapi-statusline": "dist/ccstatusline.js"
+    "mochiapi-statusline": "dist/ccstatusline.js"
   },
   "files": [
     "dist/"
@@ -60,7 +60,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/sirmalloc/ccstatusline.git"
+    "url": "git+https://github.com/Subaru486desuwa/mochiapi-statusline.git"
   },
   "engines": {
     "node": ">=14.0.0"

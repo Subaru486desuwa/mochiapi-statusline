@@ -56036,7 +56036,7 @@ function getTerminalWidth() {
 function canDetectTerminalWidth() {
   return probeTerminalWidth() !== null;
 }
-var __dirname = "/Users/shilinghan/Developer/nekoapi-statusline/src/utils", PACKAGE_VERSION = "0.1.0";
+var __dirname = "/Users/shilinghan/Developer/mochiapi-statusline/src/utils", PACKAGE_VERSION = "0.1.0";
 var init_terminal = () => {};
 
 // src/utils/renderer.ts
@@ -66944,19 +66944,19 @@ var init_VoiceStatus = __esm(async () => {
   FORMATS3 = ["icon", "icon-text", "text", "word"];
 });
 
-// src/utils/nekoapi.ts
-var exports_nekoapi = {};
-__export(exports_nekoapi, {
+// src/utils/mochiapi.ts
+var exports_mochiapi = {};
+__export(exports_mochiapi, {
   writeCache: () => writeCache2,
   viewFromCache: () => viewFromCache,
-  saveNekoConfig: () => saveNekoConfig,
+  saveMochiConfig: () => saveMochiConfig,
   refreshCli: () => refreshCli,
   readCache: () => readCache2,
   maybeRefreshInBackground: () => maybeRefreshInBackground,
-  loadNekoConfig: () => loadNekoConfig,
+  loadMochiConfig: () => loadMochiConfig,
   fetchBalance: () => fetchBalance,
-  NEKO_CONFIG_PATH: () => NEKO_CONFIG_PATH,
-  NEKO_CACHE_PATH: () => NEKO_CACHE_PATH
+  MOCHI_CONFIG_PATH: () => MOCHI_CONFIG_PATH,
+  MOCHI_CACHE_PATH: () => MOCHI_CACHE_PATH
 });
 import { spawn } from "child_process";
 import {
@@ -66973,27 +66973,27 @@ import {
   dirname as dirname2,
   join as join4
 } from "path";
-function getNekoConfigDir() {
+function getMochiConfigDir() {
   if (platform2() === "win32") {
     const appData = process.env.APPDATA ?? join4(homedir3(), "AppData", "Roaming");
-    return join4(appData, "nekoapi-statusline");
+    return join4(appData, "mochiapi-statusline");
   }
   const xdgConfig = process.env.XDG_CONFIG_HOME ?? join4(homedir3(), ".config");
-  return join4(xdgConfig, "nekoapi-statusline");
+  return join4(xdgConfig, "mochiapi-statusline");
 }
-function getNekoCacheDir() {
+function getMochiCacheDir() {
   if (platform2() === "win32") {
     const localAppData = process.env.LOCALAPPDATA ?? join4(homedir3(), "AppData", "Local");
-    return join4(localAppData, "nekoapi-statusline", "cache");
+    return join4(localAppData, "mochiapi-statusline", "cache");
   }
   const xdgCache = process.env.XDG_CACHE_HOME ?? join4(homedir3(), ".cache");
-  return join4(xdgCache, "nekoapi-statusline");
+  return join4(xdgCache, "mochiapi-statusline");
 }
-function loadNekoConfig() {
-  if (!existsSync8(NEKO_CONFIG_PATH))
+function loadMochiConfig() {
+  if (!existsSync8(MOCHI_CONFIG_PATH))
     return null;
   try {
-    const raw = JSON.parse(readFileSync11(NEKO_CONFIG_PATH, "utf8"));
+    const raw = JSON.parse(readFileSync11(MOCHI_CONFIG_PATH, "utf8"));
     if (!raw.token)
       return null;
     return {
@@ -67005,22 +67005,22 @@ function loadNekoConfig() {
     return null;
   }
 }
-function saveNekoConfig(cfg) {
-  mkdirSync5(dirname2(NEKO_CONFIG_PATH), { recursive: true });
-  writeFileSync5(NEKO_CONFIG_PATH, JSON.stringify(cfg, null, 2));
+function saveMochiConfig(cfg) {
+  mkdirSync5(dirname2(MOCHI_CONFIG_PATH), { recursive: true });
+  writeFileSync5(MOCHI_CONFIG_PATH, JSON.stringify(cfg, null, 2));
 }
 function readCache2() {
-  if (!existsSync8(NEKO_CACHE_PATH))
+  if (!existsSync8(MOCHI_CACHE_PATH))
     return null;
   try {
-    return JSON.parse(readFileSync11(NEKO_CACHE_PATH, "utf8"));
+    return JSON.parse(readFileSync11(MOCHI_CACHE_PATH, "utf8"));
   } catch {
     return null;
   }
 }
 function writeCache2(cache3) {
-  mkdirSync5(dirname2(NEKO_CACHE_PATH), { recursive: true });
-  writeFileSync5(NEKO_CACHE_PATH, JSON.stringify(cache3));
+  mkdirSync5(dirname2(MOCHI_CACHE_PATH), { recursive: true });
+  writeFileSync5(MOCHI_CACHE_PATH, JSON.stringify(cache3));
 }
 function ymd(d) {
   const y = d.getFullYear();
@@ -67081,16 +67081,16 @@ function maybeRefreshInBackground(cfg, cache3) {
   const stale = !cache3 || Date.now() - cache3.fetchedAt > cfg.refreshIntervalSec * 1000;
   if (!stale)
     return;
-  if (process.env.CCSL_NEKOAPI_REFRESHING === "1")
+  if (process.env.CCSL_MOCHIAPI_REFRESHING === "1")
     return;
   const argv0 = process.execPath;
   const entry = process.argv[1];
   if (!entry)
     return;
-  const child = spawn(argv0, [entry, "--nekoapi-refresh"], {
+  const child = spawn(argv0, [entry, "--mochiapi-refresh"], {
     detached: true,
     stdio: "ignore",
-    env: { ...process.env, CCSL_NEKOAPI_REFRESHING: "1" }
+    env: { ...process.env, CCSL_MOCHIAPI_REFRESHING: "1" }
   });
   child.unref();
 }
@@ -67114,19 +67114,19 @@ function viewFromCache(cache3, cfg) {
   };
 }
 async function refreshCli() {
-  const cfg = loadNekoConfig();
+  const cfg = loadMochiConfig();
   if (!cfg)
     return;
   const cache3 = await fetchBalance(cfg);
   writeCache2(cache3);
 }
-var DEFAULT_BASE_URL = "https://nekoapi.cc", DEFAULT_INTERVAL = 30, UNLIMITED_THRESHOLD = 1e7, NEKO_CONFIG_PATH, NEKO_CACHE_PATH;
-var init_nekoapi = __esm(() => {
-  NEKO_CONFIG_PATH = join4(getNekoConfigDir(), "config.json");
-  NEKO_CACHE_PATH = join4(getNekoCacheDir(), "balance.json");
+var DEFAULT_BASE_URL = "https://mochiapi.cc", DEFAULT_INTERVAL = 30, UNLIMITED_THRESHOLD = 1e7, MOCHI_CONFIG_PATH, MOCHI_CACHE_PATH;
+var init_mochiapi = __esm(() => {
+  MOCHI_CONFIG_PATH = join4(getMochiConfigDir(), "config.json");
+  MOCHI_CACHE_PATH = join4(getMochiCacheDir(), "balance.json");
 });
 
-// src/widgets/NekoApiBalance.ts
+// src/widgets/MochiApiBalance.ts
 function fmtUsd(v) {
   if (v >= 1000)
     return `$${v.toFixed(0)}`;
@@ -67135,18 +67135,18 @@ function fmtUsd(v) {
   return `$${v.toFixed(3)}`;
 }
 
-class NekoApiBalanceWidget {
+class MochiApiBalanceWidget {
   getDefaultColor() {
     return "cyan";
   }
   getDescription() {
-    return "NekoAPI token balance / usage from /v1/dashboard/billing/*";
+    return "MochiAPI token balance / usage from /v1/dashboard/billing/*";
   }
   getDisplayName() {
-    return "NekoAPI Balance";
+    return "MochiAPI Balance";
   }
   getCategory() {
-    return "NekoAPI";
+    return "MochiAPI";
   }
   getEditorDisplay(_item) {
     return { displayText: this.getDisplayName() };
@@ -67156,17 +67156,17 @@ class NekoApiBalanceWidget {
     const labeled = !item.rawValue;
     if (context.isPreview) {
       const stub = mode === "balance" ? "$8.42" : mode === "used" ? "$1.58" : mode === "percent" ? "15.8%" : "$8.42 / $1.58";
-      return labeled ? `Neko: ${stub}` : stub;
+      return labeled ? `Mochi: ${stub}` : stub;
     }
-    const cfg = loadNekoConfig();
+    const cfg = loadMochiConfig();
     if (!cfg) {
-      return labeled ? "Neko: cfg?" : "cfg?";
+      return labeled ? "Mochi: cfg?" : "cfg?";
     }
     const cache3 = readCache2();
     maybeRefreshInBackground(cfg, cache3);
     const view = viewFromCache(cache3, cfg);
     if (!view)
-      return labeled ? "Neko: ..." : "...";
+      return labeled ? "Mochi: ..." : "...";
     let body;
     if (mode === "used") {
       body = view.usedUsd === null ? "?" : fmtUsd(view.usedUsd);
@@ -67188,7 +67188,7 @@ class NekoApiBalanceWidget {
       body = `${bal} / ${used}`;
     }
     const decorated = view.stale ? `${body}*` : body;
-    return labeled ? `Neko: ${decorated}` : decorated;
+    return labeled ? `Mochi: ${decorated}` : decorated;
   }
   supportsRawValue() {
     return true;
@@ -67197,8 +67197,8 @@ class NekoApiBalanceWidget {
     return true;
   }
 }
-var init_NekoApiBalance = __esm(() => {
-  init_nekoapi();
+var init_MochiApiBalance = __esm(() => {
+  init_mochiapi();
 });
 
 // src/widgets/index.ts
@@ -67243,7 +67243,7 @@ var init_widgets = __esm(async () => {
   init_SessionName();
   init_VimMode();
   init_CompactionCounter();
-  init_NekoApiBalance();
+  init_MochiApiBalance();
   await __promiseAll([
     init_TokensInput(),
     init_TokensOutput(),
@@ -67355,7 +67355,7 @@ var init_widget_manifest = __esm(async () => {
     { type: "worktree-branch", create: () => new GitWorktreeBranchWidget },
     { type: "worktree-original-branch", create: () => new GitWorktreeOriginalBranchWidget },
     { type: "compaction-counter", create: () => new CompactionCounterWidget },
-    { type: "nekoapi-balance", create: () => new NekoApiBalanceWidget }
+    { type: "mochiapi-balance", create: () => new MochiApiBalanceWidget }
   ];
   LAYOUT_WIDGET_MANIFEST = [
     {
@@ -68293,25 +68293,25 @@ var require_pluralize = __commonJS((exports, module) => {
   });
 });
 
-// src/utils/nekoapi-setup.ts
-var exports_nekoapi_setup = {};
-__export(exports_nekoapi_setup, {
-  runNekoApiSetup: () => runNekoApiSetup
+// src/utils/mochiapi-setup.ts
+var exports_mochiapi_setup = {};
+__export(exports_mochiapi_setup, {
+  runMochiApiSetup: () => runMochiApiSetup
 });
 import { createInterface } from "readline/promises";
 function readEnv(name) {
   const v = process.env[name];
   return v?.trim() ? v.trim() : undefined;
 }
-async function runNekoApiSetup() {
-  const envToken = readEnv("NEKOAPI_TOKEN");
-  const envBase = readEnv("NEKOAPI_BASE_URL");
-  const envInterval = readEnv("NEKOAPI_REFRESH_SEC");
+async function runMochiApiSetup() {
+  const envToken = readEnv("MOCHIAPI_TOKEN");
+  const envBase = readEnv("MOCHIAPI_BASE_URL");
+  const envInterval = readEnv("MOCHIAPI_REFRESH_SEC");
   let token = envToken;
-  let baseUrl = envBase ?? "https://nekoapi.cc";
+  let baseUrl = envBase ?? "https://mochiapi.cc";
   let refresh = envInterval ? Number(envInterval) : 30;
   if (!token) {
-    const existing = loadNekoConfig();
+    const existing = loadMochiConfig();
     const rl = createInterface({ input: process.stdin, output: process.stdout });
     try {
       const baseAns = await rl.question(`Base URL [${existing?.baseUrl ?? baseUrl}]: `);
@@ -68334,13 +68334,13 @@ async function runNekoApiSetup() {
     }
   }
   if (!token) {
-    console.error("No token provided. Set NEKOAPI_TOKEN or answer interactively.");
+    console.error("No token provided. Set MOCHIAPI_TOKEN or answer interactively.");
     process.exitCode = 1;
     return;
   }
   const cfg = { baseUrl: baseUrl.replace(/\/+$/, ""), token, refreshIntervalSec: refresh };
-  saveNekoConfig(cfg);
-  console.log(`Saved config to ${NEKO_CONFIG_PATH}`);
+  saveMochiConfig(cfg);
+  console.log(`Saved config to ${MOCHI_CONFIG_PATH}`);
   const cache3 = await fetchBalance(cfg);
   writeCache2(cache3);
   if (cache3.ok) {
@@ -68350,8 +68350,8 @@ async function runNekoApiSetup() {
     process.exitCode = 2;
   }
 }
-var init_nekoapi_setup = __esm(() => {
-  init_nekoapi();
+var init_mochiapi_setup = __esm(() => {
+  init_mochiapi();
 });
 
 // src/ccstatusline.ts
@@ -74625,14 +74625,14 @@ async function main() {
     await handleHook();
     return;
   }
-  if (process.argv.includes("--nekoapi-refresh")) {
-    const { refreshCli: refreshCli2 } = await Promise.resolve().then(() => (init_nekoapi(), exports_nekoapi));
+  if (process.argv.includes("--mochiapi-refresh")) {
+    const { refreshCli: refreshCli2 } = await Promise.resolve().then(() => (init_mochiapi(), exports_mochiapi));
     await refreshCli2();
     return;
   }
-  if (process.argv.includes("--nekoapi-setup")) {
-    const { runNekoApiSetup: runNekoApiSetup2 } = await Promise.resolve().then(() => (init_nekoapi_setup(), exports_nekoapi_setup));
-    await runNekoApiSetup2();
+  if (process.argv.includes("--mochiapi-setup")) {
+    const { runMochiApiSetup: runMochiApiSetup2 } = await Promise.resolve().then(() => (init_mochiapi_setup(), exports_mochiapi_setup));
+    await runMochiApiSetup2();
     return;
   }
   if (!process.stdin.isTTY) {

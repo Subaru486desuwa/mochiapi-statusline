@@ -1,18 +1,18 @@
-# nekoapi-statusline
+# mochiapi-statusline
 
-Fork of [sirmalloc/ccstatusline](https://github.com/sirmalloc/ccstatusline) with a `NekoAPI Balance` widget for the [NekoAPI](https://nekoapi.cc) gateway.
+Fork of [sirmalloc/ccstatusline](https://github.com/sirmalloc/ccstatusline) with a `MochiAPI Balance` widget for the [MochiAPI](https://mochiapi.cc) gateway.
 
 ## What changed vs upstream
 
-- New widget type `nekoapi-balance` (display name "NekoAPI Balance", category "NekoAPI")
+- New widget type `mochiapi-balance` (display name "MochiAPI Balance", category "MochiAPI")
 - New CLI flags:
-  - `--nekoapi-setup`  interactive (or env-driven) config writer + connectivity probe
-  - `--nekoapi-refresh`  one-shot cache refresh (used internally by the widget)
+  - `--mochiapi-setup`  interactive (or env-driven) config writer + connectivity probe
+  - `--mochiapi-refresh`  one-shot cache refresh (used internally by the widget)
 - New runtime files:
-  - `src/utils/nekoapi.ts`  HTTP client + on-disk config/cache helpers
-  - `src/utils/nekoapi-setup.ts`  CLI setup flow
-  - `src/widgets/NekoApiBalance.ts`  widget render logic
-- Package renamed to `nekoapi-statusline`, binary `nekoapi-statusline`
+  - `src/utils/mochiapi.ts`  HTTP client + on-disk config/cache helpers
+  - `src/utils/mochiapi-setup.ts`  CLI setup flow
+  - `src/widgets/MochiApiBalance.ts`  widget render logic
+- Package renamed to `mochiapi-statusline`, binary `mochiapi-statusline`
 
 Everything else (widgets, TUI, layout, powerline, themes) is untouched and tracks upstream.
 
@@ -30,33 +30,33 @@ Bearer auth (`Authorization: Bearer sk-...`). No cookies, no session.
 Requires **Node.js ≥ 14**. Not on npm yet — install from a GitHub source tarball:
 
 ```bash
-npm install -g https://github.com/Subaru486desuwa/nekoapi-statusline/archive/refs/heads/main.tar.gz
+npm install -g https://github.com/Subaru486desuwa/mochiapi-statusline/archive/refs/heads/main.tar.gz
 ```
 
 The pre-built `dist/ccstatusline.js` is committed in the repo, so the tarball install drops the binary straight in — no build step runs on your machine.
 
-> ℹ️ Avoid `npm install -g github:Subaru486desuwa/nekoapi-statusline`. npm's git-URL install path strips files outside `package.json#files` during its prepare step and ends up with a broken symlink. The tarball URL above is the reliable form.
+> ℹ️ Avoid `npm install -g github:Subaru486desuwa/mochiapi-statusline`. npm's git-URL install path strips files outside `package.json#files` during its prepare step and ends up with a broken symlink. The tarball URL above is the reliable form.
 
 ### macOS / Linux
 
 ```bash
 # 1. install
-npm install -g https://github.com/Subaru486desuwa/nekoapi-statusline/archive/refs/heads/main.tar.gz
+npm install -g https://github.com/Subaru486desuwa/mochiapi-statusline/archive/refs/heads/main.tar.gz
 
-# 2. configure (replace sk-xxxx with your NekoAPI token)
-NEKOAPI_BASE_URL=https://nekoapi.cc NEKOAPI_TOKEN=sk-xxxx nekoapi-statusline --nekoapi-setup
+# 2. configure (replace sk-xxxx with your MochiAPI token)
+MOCHIAPI_BASE_URL=https://mochiapi.cc MOCHIAPI_TOKEN=sk-xxxx mochiapi-statusline --mochiapi-setup
 
 # 3. wire it into Claude Code
 mkdir -p ~/.claude
 # If ~/.claude/settings.json already exists, edit it to add the statusLine field;
 # otherwise just create it:
 cat > ~/.claude/settings.json <<'JSON'
-{ "statusLine": { "type": "command", "command": "nekoapi-statusline" } }
+{ "statusLine": { "type": "command", "command": "mochiapi-statusline" } }
 JSON
 
 # 4. (optional) open the TUI to add the widget to a status line
-nekoapi-statusline
-# → pick a line → Add widget → search "NekoAPI" → choose display mode
+mochiapi-statusline
+# → pick a line → Add widget → search "MochiAPI" → choose display mode
 ```
 
 ### Windows (PowerShell)
@@ -68,12 +68,12 @@ nekoapi-statusline
 node --version
 
 # 2. install (run PowerShell as Administrator or use --prefix to avoid permission issues)
-npm install -g https://github.com/Subaru486desuwa/nekoapi-statusline/archive/refs/heads/main.tar.gz
+npm install -g https://github.com/Subaru486desuwa/mochiapi-statusline/archive/refs/heads/main.tar.gz
 
 # 3. configure
-$env:NEKOAPI_BASE_URL = "https://nekoapi.cc"
-$env:NEKOAPI_TOKEN    = "sk-xxxx"
-nekoapi-statusline --nekoapi-setup
+$env:MOCHIAPI_BASE_URL = "https://mochiapi.cc"
+$env:MOCHIAPI_TOKEN    = "sk-xxxx"
+mochiapi-statusline --mochiapi-setup
 
 # 4. wire it into Claude Code (%USERPROFILE%\.claude\settings.json)
 $claudeDir = "$env:USERPROFILE\.claude"
@@ -82,22 +82,22 @@ $cfg = "$claudeDir\settings.json"
 if (Test-Path $cfg) {
     # merge into existing settings.json
     $j = Get-Content $cfg -Raw | ConvertFrom-Json
-    $j | Add-Member -Force -NotePropertyName statusLine -NotePropertyValue (@{ type="command"; command="nekoapi-statusline" })
+    $j | Add-Member -Force -NotePropertyName statusLine -NotePropertyValue (@{ type="command"; command="mochiapi-statusline" })
     $j | ConvertTo-Json -Depth 10 | Set-Content $cfg -Encoding UTF8
 } else {
-    '{ "statusLine": { "type": "command", "command": "nekoapi-statusline" } }' | Set-Content $cfg -Encoding UTF8
+    '{ "statusLine": { "type": "command", "command": "mochiapi-statusline" } }' | Set-Content $cfg -Encoding UTF8
 }
 
 # 5. (optional) open the TUI to customize widgets
-nekoapi-statusline
+mochiapi-statusline
 ```
 
 ### Where files live
 
 | | macOS / Linux | Windows |
 |---|---|---|
-| Config | `~/.config/nekoapi-statusline/config.json` | `%APPDATA%\nekoapi-statusline\config.json` |
-| Balance cache | `~/.cache/nekoapi-statusline/balance.json` | `%LOCALAPPDATA%\nekoapi-statusline\cache\balance.json` |
+| Config | `~/.config/mochiapi-statusline/config.json` | `%APPDATA%\mochiapi-statusline\config.json` |
+| Balance cache | `~/.cache/mochiapi-statusline/balance.json` | `%LOCALAPPDATA%\mochiapi-statusline\cache\balance.json` |
 | Claude Code settings | `~/.claude/settings.json` | `%USERPROFILE%\.claude\settings.json` |
 
 Cache is refreshed in a detached subprocess every `refreshIntervalSec` (default 30s).
@@ -106,23 +106,23 @@ Cache is refreshed in a detached subprocess every `refreshIntervalSec` (default 
 
 ```bash
 # upgrade — rerun the install command to pull latest main
-npm install -g https://github.com/Subaru486desuwa/nekoapi-statusline/archive/refs/heads/main.tar.gz
+npm install -g https://github.com/Subaru486desuwa/mochiapi-statusline/archive/refs/heads/main.tar.gz
 
 # uninstall
-npm uninstall -g nekoapi-statusline
+npm uninstall -g mochiapi-statusline
 ```
 
 ### Verifying the install
 
 ```bash
-nekoapi-statusline --nekoapi-refresh
+mochiapi-statusline --mochiapi-refresh
 # (no output on success; check the cache file)
 
 # pipe a fake Claude Code payload to see a rendered status line
-echo '{"hook_event_name":"Status","model":{"id":"claude-opus-4-7[1m]","display_name":"Opus 4.7"},"transcript_path":"/tmp/fake.jsonl","cwd":".","workspace":{"current_dir":".","project_dir":".","added_dirs":[]},"version":"2.1.80","output_style":{"name":"default"}}' | nekoapi-statusline
+echo '{"hook_event_name":"Status","model":{"id":"claude-opus-4-7[1m]","display_name":"Opus 4.7"},"transcript_path":"/tmp/fake.jsonl","cwd":".","workspace":{"current_dir":".","project_dir":".","added_dirs":[]},"version":"2.1.80","output_style":{"name":"default"}}' | mochiapi-statusline
 ```
 
-If you see `Neko: cfg?` the config file isn't found — re-run `--nekoapi-setup`. If you see `Neko: ...` it means the cache hasn't been populated yet — run `nekoapi-statusline --nekoapi-refresh` once, or wait 30s for the background refresher.
+If you see `Mochi: cfg?` the config file isn't found — re-run `--mochiapi-setup`. If you see `Mochi: ...` it means the cache hasn't been populated yet — run `mochiapi-statusline --mochiapi-refresh` once, or wait 30s for the background refresher.
 
 ## Widget options
 
@@ -136,21 +136,21 @@ Unlimited tokens (`hard_limit_usd ≥ 1e7`) show `∞` (`balance`/`percent` mode
 
 A trailing `*` means the cached value is older than `2 × refreshIntervalSec` — usually the network or the upstream went away. The widget keeps rendering the last good number while the background refresher retries.
 
-## Recommended layout (dracula powerline + NekoAPI)
+## Recommended layout (dracula powerline + MochiAPI)
 
-The "screenshot" layout from the README — three lines, dracula colors, NekoAPI balance on its own row. Drop this into your ccstatusline settings file (path below).
+The "screenshot" layout from the README — three lines, dracula colors, MochiAPI balance on its own row. Drop this into your ccstatusline settings file (path below).
 
 | OS | Path |
 |---|---|
 | macOS / Linux | `~/.config/ccstatusline/settings.json` |
 | Windows | `%USERPROFILE%\.config\ccstatusline\settings.json` |
 
-> ℹ️ This is the upstream ccstatusline TUI's settings file (not the NekoAPI token config in `~/.config/nekoapi-statusline/`). They're separate.
+> ℹ️ This is the upstream ccstatusline TUI's settings file (not the MochiAPI token config in `~/.config/mochiapi-statusline/`). They're separate.
 
 The layout:
 - **Line 1**: `模型 / Opus 4.7 (1M context) / 上下文 / <tokens> / <branch> / <changes>`
 - **Line 2**: `时段用量 / 5.0% / 时段 / 3h41m / 重置 / 1h18m / 周用量 / 12.0% / TPS / <t/s>`
-- **Line 3**: `Neko / ∞ · $1.172` (NekoAPI Balance widget, combined mode)
+- **Line 3**: `Mochi / ∞ · $1.172` (MochiAPI Balance widget, combined mode)
 
 <details>
 <summary>Full <code>settings.json</code></summary>
@@ -180,8 +180,8 @@ The layout:
       { "id": "L2-sum", "type": "total-speed", "color": "white", "backgroundColor": "bgRed", "bold": true, "rawValue": true }
     ],
     [
-      { "id": "L3-lbl-neko", "type": "custom-text", "color": "black", "backgroundColor": "bgCyan", "bold": true, "customText": "Neko" },
-      { "id": "L3-neko", "type": "nekoapi-balance", "color": "black", "backgroundColor": "bgCyan", "bold": true, "rawValue": true, "metadata": { "mode": "combined" } }
+      { "id": "L3-lbl-mochi", "type": "custom-text", "color": "black", "backgroundColor": "bgCyan", "bold": true, "customText": "Mochi" },
+      { "id": "L3-mochi", "type": "mochiapi-balance", "color": "black", "backgroundColor": "bgCyan", "bold": true, "rawValue": true, "metadata": { "mode": "combined" } }
     ]
   ],
   "flexMode": "full",
@@ -210,12 +210,12 @@ After saving, smoke-test it without launching Claude Code:
 
 ```bash
 # macOS / Linux
-echo '{"session_id":"test","model":{"id":"claude-opus-4-7","display_name":"Opus 4.7 (1M context)"},"workspace":{"current_dir":".","project_dir":"."},"cost":{"total_cost_usd":1.172},"transcript_path":"/tmp/nonexistent","output_style":{"name":"default"}}' | nekoapi-statusline
+echo '{"session_id":"test","model":{"id":"claude-opus-4-7","display_name":"Opus 4.7 (1M context)"},"workspace":{"current_dir":".","project_dir":"."},"cost":{"total_cost_usd":1.172},"transcript_path":"/tmp/nonexistent","output_style":{"name":"default"}}' | mochiapi-statusline
 ```
 
 ```powershell
 # Windows PowerShell
-'{"session_id":"test","model":{"id":"claude-opus-4-7","display_name":"Opus 4.7 (1M context)"},"workspace":{"current_dir":".","project_dir":"."},"cost":{"total_cost_usd":1.172},"transcript_path":"NUL","output_style":{"name":"default"}}' | nekoapi-statusline
+'{"session_id":"test","model":{"id":"claude-opus-4-7","display_name":"Opus 4.7 (1M context)"},"workspace":{"current_dir":".","project_dir":"."},"cost":{"total_cost_usd":1.172},"transcript_path":"NUL","output_style":{"name":"default"}}' | mochiapi-statusline
 ```
 
 You should see three Powerline-styled rows in dracula colors. If separators show as `?` your terminal isn't using a Nerd Font — fix that first.

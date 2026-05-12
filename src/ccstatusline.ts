@@ -275,15 +275,15 @@ async function main() {
         return;
     }
 
-    if (process.argv.includes('--nekoapi-refresh')) {
-        const { refreshCli } = await import('./utils/nekoapi');
+    if (process.argv.includes('--mochiapi-refresh')) {
+        const { refreshCli } = await import('./utils/mochiapi');
         await refreshCli();
         return;
     }
 
-    if (process.argv.includes('--nekoapi-setup')) {
-        const { runNekoApiSetup } = await import('./utils/nekoapi-setup');
-        await runNekoApiSetup();
+    if (process.argv.includes('--mochiapi-setup')) {
+        const { runMochiApiSetup } = await import('./utils/mochiapi-setup');
+        await runMochiApiSetup();
         return;
     }
 

@@ -1,29 +1,29 @@
 import { createInterface } from 'readline/promises';
 
 import {
-    NEKO_CONFIG_PATH,
+    MOCHI_CONFIG_PATH,
     fetchBalance,
-    loadNekoConfig,
-    saveNekoConfig,
+    loadMochiConfig,
+    saveMochiConfig,
     writeCache
-} from './nekoapi';
+} from './mochiapi';
 
 function readEnv(name: string): string | undefined {
     const v = process.env[name];
     return v?.trim() ? v.trim() : undefined;
 }
 
-export async function runNekoApiSetup(): Promise<void> {
-    const envToken = readEnv('NEKOAPI_TOKEN');
-    const envBase = readEnv('NEKOAPI_BASE_URL');
-    const envInterval = readEnv('NEKOAPI_REFRESH_SEC');
+export async function runMochiApiSetup(): Promise<void> {
+    const envToken = readEnv('MOCHIAPI_TOKEN');
+    const envBase = readEnv('MOCHIAPI_BASE_URL');
+    const envInterval = readEnv('MOCHIAPI_REFRESH_SEC');
 
     let token = envToken;
-    let baseUrl = envBase ?? 'https://nekoapi.cc';
+    let baseUrl = envBase ?? 'https://mochiapi.cc';
     let refresh = envInterval ? Number(envInterval) : 30;
 
     if (!token) {
-        const existing = loadNekoConfig();
+        const existing = loadMochiConfig();
         const rl = createInterface({ input: process.stdin, output: process.stdout });
         try {
             const baseAns = await rl.question(`Base URL [${existing?.baseUrl ?? baseUrl}]: `);
@@ -49,14 +49,14 @@ export async function runNekoApiSetup(): Promise<void> {
     }
 
     if (!token) {
-        console.error('No token provided. Set NEKOAPI_TOKEN or answer interactively.');
+        console.error('No token provided. Set MOCHIAPI_TOKEN or answer interactively.');
         process.exitCode = 1;
         return;
     }
 
     const cfg = { baseUrl: baseUrl.replace(/\/+$/, ''), token, refreshIntervalSec: refresh };
-    saveNekoConfig(cfg);
-    console.log(`Saved config to ${NEKO_CONFIG_PATH}`);
+    saveMochiConfig(cfg);
+    console.log(`Saved config to ${MOCHI_CONFIG_PATH}`);
 
     const cache = await fetchBalance(cfg);
     writeCache(cache);
