@@ -27,12 +27,14 @@ const MOCHI_BALANCE_TYPE = 'mochiapi-balance';
 interface SetupOptions {
     skipStatusline?: boolean;
     skipClaudeWire?: boolean;
+    keepStatuslineLayout?: boolean;
 }
 
 function parseFlags(argv: readonly string[]): SetupOptions {
     return {
         skipStatusline: argv.includes('--skip-statusline'),
-        skipClaudeWire: argv.includes('--skip-claude-wire')
+        skipClaudeWire: argv.includes('--skip-claude-wire'),
+        keepStatuslineLayout: argv.includes('--keep-statusline-layout')
     };
 }
 
@@ -103,7 +105,9 @@ function hasMochiBalanceWidget(settings: MochiSettings): boolean {
     return false;
 }
 
-async function writeStatuslineSettings(): Promise<'created' | 'has-widget' | 'appended'> {
+type StatuslineWriteResult = 'created' | 'replaced' | 'appended' | 'has-widget';
+
+async function writeStatuslineSettings(opts: SetupOptions): Promise<{ result: StatuslineWriteResult; backupPath?: string }> {
     const settingsPath = getConfigPath();
     const dir = path.dirname(settingsPath);
 
@@ -111,23 +115,33 @@ async function writeStatuslineSettings(): Promise<'created' | 'has-widget' | 'ap
         await fs.promises.mkdir(dir, { recursive: true });
         const recommended = buildRecommendedSettings();
         await fs.promises.writeFile(settingsPath, JSON.stringify(recommended, null, 2), 'utf-8');
-        return 'created';
+        return { result: 'created' };
+    }
+
+    // Default behavior: replace with recommended layout (with backup).
+    // --keep-statusline-layout: only append the Mochi widget row if missing.
+    if (!opts.keepStatuslineLayout) {
+        const backupPath = `${settingsPath}.bak-${Date.now()}`;
+        await fs.promises.copyFile(settingsPath, backupPath);
+        const recommended = buildRecommendedSettings();
+        await fs.promises.writeFile(settingsPath, JSON.stringify(recommended, null, 2), 'utf-8');
+        return { result: 'replaced', backupPath };
     }
 
     let existing: MochiSettings & { lines?: unknown[] };
     try {
         existing = JSON.parse(await fs.promises.readFile(settingsPath, 'utf-8')) as MochiSettings & { lines?: unknown[] };
     } catch {
-        const backup = `${settingsPath}.bak-${Date.now()}`;
-        await fs.promises.copyFile(settingsPath, backup);
-        console.warn(`Existing ${settingsPath} was unparseable; backed up to ${backup}.`);
+        const backupPath = `${settingsPath}.bak-${Date.now()}`;
+        await fs.promises.copyFile(settingsPath, backupPath);
+        console.warn(`Existing ${settingsPath} was unparseable; backed up to ${backupPath}.`);
         const recommended = buildRecommendedSettings();
         await fs.promises.writeFile(settingsPath, JSON.stringify(recommended, null, 2), 'utf-8');
-        return 'created';
+        return { result: 'created', backupPath };
     }
 
     if (hasMochiBalanceWidget(existing)) {
-        return 'has-widget';
+        return { result: 'has-widget' };
     }
 
     if (!Array.isArray(existing.lines))
@@ -137,7 +151,7 @@ async function writeStatuslineSettings(): Promise<'created' | 'has-widget' | 'ap
         { id: 'L3-mochi', type: MOCHI_BALANCE_TYPE, color: 'black', backgroundColor: 'bgCyan', bold: true, rawValue: true, metadata: { mode: 'combined' } }
     ]);
     await fs.promises.writeFile(settingsPath, JSON.stringify(existing, null, 2), 'utf-8');
-    return 'appended';
+    return { result: 'appended' };
 }
 
 async function wireClaudeStatusLine(): Promise<'wired' | 'already' | 'replaced'> {
@@ -214,14 +228,19 @@ export async function runMochiApiSetup(): Promise<void> {
 
     if (!opts.skipStatusline) {
         try {
-            const result = await writeStatuslineSettings();
+            const { result, backupPath } = await writeStatuslineSettings(opts);
             const ccPath = getConfigPath();
-            if (result === 'created')
+            if (result === 'created') {
                 console.log(`✓ ccstatusline layout (dracula 3-line) → ${ccPath}`);
-            else if (result === 'appended')
+            } else if (result === 'replaced') {
+                console.log(`✓ ccstatusline layout reset to dracula 3-line → ${ccPath}`);
+                if (backupPath)
+                    console.log(`  previous file backed up → ${backupPath}`);
+            } else if (result === 'appended') {
                 console.log(`✓ Mochi balance widget appended → ${ccPath}`);
-            else
+            } else {
                 console.log(`• ccstatusline settings.json already has the Mochi widget → ${ccPath}`);
+            }
         } catch (err) {
             console.error(`✗ ccstatusline settings.json write failed: ${err instanceof Error ? err.message : String(err)}`);
         }

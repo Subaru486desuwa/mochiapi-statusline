@@ -52709,13 +52709,20 @@ class ModelWidget {
   render(item, context, settings) {
     const keepContext = isMetadataFlagEnabled(item, KEEP_CONTEXT_KEY);
     if (context.isPreview) {
-      const preview = keepContext ? "Claude (1M context)" : "Claude";
+      const preview = keepContext ? "Claude [1M]" : "Claude";
       return item.rawValue ? preview : `Model: ${preview}`;
     }
     const model = context.data?.model;
     const modelDisplayName = typeof model === "string" ? model : model?.display_name ?? model?.id;
     if (modelDisplayName) {
-      const name = keepContext ? modelDisplayName : modelDisplayName.replace(/\s*\(.*\)$/, "");
+      let name = keepContext ? modelDisplayName : modelDisplayName.replace(/\s*\(.*\)$/, "");
+      if (keepContext) {
+        const modelId = typeof model === "string" ? model : model?.id;
+        const has1MTag = /1\s*m(?:illion)?(?:\s*context)?|\[\s*1\s*m\s*\]/i.test(name);
+        if (!has1MTag && modelId && /\[\s*1\s*m\s*\]\s*$/i.test(modelId)) {
+          name = `${name} [1M]`;
+        }
+      }
       return item.rawValue ? name : `Model: ${name}`;
     }
     return null;
@@ -67159,7 +67166,7 @@ class MochiApiBalanceWidget {
     const mode = item.metadata?.mode ?? "combined";
     const labeled = !item.rawValue;
     if (context.isPreview) {
-      const stub = mode === "balance" ? "$8.42" : mode === "used" ? "$1.58" : mode === "percent" ? "15.8%" : "$8.42 / $1.58";
+      const stub = mode === "balance" ? "$8.42 left" : mode === "used" ? "$1.58 used" : mode === "percent" ? "15.8%" : "$8.42 left · $1.58 used";
       return labeled ? `Mochi: ${stub}` : stub;
     }
     const cfg = loadMochiConfig();
@@ -67173,9 +67180,13 @@ class MochiApiBalanceWidget {
       return labeled ? "Mochi: ..." : "...";
     let body;
     if (mode === "used") {
-      body = view.usedUsd === null ? "?" : fmtUsd(view.usedUsd);
+      body = view.usedUsd === null ? "?" : `${fmtUsd(view.usedUsd)} used`;
     } else if (mode === "balance") {
-      body = view.unlimited ? "∞" : view.balanceUsd === null ? "?" : fmtUsd(view.balanceUsd);
+      if (view.unlimited) {
+        body = "∞";
+      } else {
+        body = view.balanceUsd === null ? "?" : `${fmtUsd(view.balanceUsd)} left`;
+      }
     } else if (mode === "percent") {
       if (view.unlimited) {
         body = "∞";
@@ -67185,11 +67196,11 @@ class MochiApiBalanceWidget {
         body = "?";
       }
     } else if (view.unlimited) {
-      body = view.usedUsd === null ? "∞" : `∞ · ${fmtUsd(view.usedUsd)}`;
+      body = view.usedUsd === null ? "∞" : `∞ · ${fmtUsd(view.usedUsd)} used`;
     } else {
-      const bal = view.balanceUsd === null ? "?" : fmtUsd(view.balanceUsd);
-      const used = view.usedUsd === null ? "?" : fmtUsd(view.usedUsd);
-      body = `${bal} / ${used}`;
+      const bal = view.balanceUsd === null ? "?" : `${fmtUsd(view.balanceUsd)} left`;
+      const used = view.usedUsd === null ? "?" : `${fmtUsd(view.usedUsd)} used`;
+      body = `${bal} · ${used}`;
     }
     const decorated = view.stale ? `${body}*` : body;
     return labeled ? `Mochi: ${decorated}` : decorated;
@@ -68313,7 +68324,8 @@ function readEnv(name) {
 function parseFlags(argv) {
   return {
     skipStatusline: argv.includes("--skip-statusline"),
-    skipClaudeWire: argv.includes("--skip-claude-wire")
+    skipClaudeWire: argv.includes("--skip-claude-wire"),
+    keepStatuslineLayout: argv.includes("--keep-statusline-layout")
   };
 }
 function buildRecommendedSettings() {
@@ -68378,28 +68390,35 @@ function hasMochiBalanceWidget(settings) {
   }
   return false;
 }
-async function writeStatuslineSettings() {
+async function writeStatuslineSettings(opts) {
   const settingsPath2 = getConfigPath();
   const dir = path13.dirname(settingsPath2);
   if (!fs16.existsSync(settingsPath2)) {
     await fs16.promises.mkdir(dir, { recursive: true });
     const recommended = buildRecommendedSettings();
     await fs16.promises.writeFile(settingsPath2, JSON.stringify(recommended, null, 2), "utf-8");
-    return "created";
+    return { result: "created" };
+  }
+  if (!opts.keepStatuslineLayout) {
+    const backupPath = `${settingsPath2}.bak-${Date.now()}`;
+    await fs16.promises.copyFile(settingsPath2, backupPath);
+    const recommended = buildRecommendedSettings();
+    await fs16.promises.writeFile(settingsPath2, JSON.stringify(recommended, null, 2), "utf-8");
+    return { result: "replaced", backupPath };
   }
   let existing;
   try {
     existing = JSON.parse(await fs16.promises.readFile(settingsPath2, "utf-8"));
   } catch {
-    const backup = `${settingsPath2}.bak-${Date.now()}`;
-    await fs16.promises.copyFile(settingsPath2, backup);
-    console.warn(`Existing ${settingsPath2} was unparseable; backed up to ${backup}.`);
+    const backupPath = `${settingsPath2}.bak-${Date.now()}`;
+    await fs16.promises.copyFile(settingsPath2, backupPath);
+    console.warn(`Existing ${settingsPath2} was unparseable; backed up to ${backupPath}.`);
     const recommended = buildRecommendedSettings();
     await fs16.promises.writeFile(settingsPath2, JSON.stringify(recommended, null, 2), "utf-8");
-    return "created";
+    return { result: "created", backupPath };
   }
   if (hasMochiBalanceWidget(existing)) {
-    return "has-widget";
+    return { result: "has-widget" };
   }
   if (!Array.isArray(existing.lines))
     existing.lines = [];
@@ -68408,7 +68427,7 @@ async function writeStatuslineSettings() {
     { id: "L3-mochi", type: MOCHI_BALANCE_TYPE, color: "black", backgroundColor: "bgCyan", bold: true, rawValue: true, metadata: { mode: "combined" } }
   ]);
   await fs16.promises.writeFile(settingsPath2, JSON.stringify(existing, null, 2), "utf-8");
-  return "appended";
+  return { result: "appended" };
 }
 async function wireClaudeStatusLine() {
   const settings = await loadClaudeSettings({ logErrors: false });
@@ -68474,14 +68493,19 @@ async function runMochiApiSetup() {
   }
   if (!opts.skipStatusline) {
     try {
-      const result2 = await writeStatuslineSettings();
+      const { result: result2, backupPath } = await writeStatuslineSettings(opts);
       const ccPath = getConfigPath();
-      if (result2 === "created")
+      if (result2 === "created") {
         console.log(`✓ ccstatusline layout (dracula 3-line) → ${ccPath}`);
-      else if (result2 === "appended")
+      } else if (result2 === "replaced") {
+        console.log(`✓ ccstatusline layout reset to dracula 3-line → ${ccPath}`);
+        if (backupPath)
+          console.log(`  previous file backed up → ${backupPath}`);
+      } else if (result2 === "appended") {
         console.log(`✓ Mochi balance widget appended → ${ccPath}`);
-      else
+      } else {
         console.log(`• ccstatusline settings.json already has the Mochi widget → ${ccPath}`);
+      }
     } catch (err) {
       console.error(`✗ ccstatusline settings.json write failed: ${err instanceof Error ? err.message : String(err)}`);
     }

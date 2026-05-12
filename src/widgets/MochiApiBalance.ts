@@ -37,10 +37,10 @@ export class MochiApiBalanceWidget implements Widget {
         const labeled = !item.rawValue;
 
         if (context.isPreview) {
-            const stub = mode === 'balance' ? '$8.42'
-                : mode === 'used' ? '$1.58'
+            const stub = mode === 'balance' ? '$8.42 left'
+                : mode === 'used' ? '$1.58 used'
                     : mode === 'percent' ? '15.8%'
-                        : '$8.42 / $1.58';
+                        : '$8.42 left · $1.58 used';
             return labeled ? `Mochi: ${stub}` : stub;
         }
 
@@ -56,9 +56,13 @@ export class MochiApiBalanceWidget implements Widget {
 
         let body: string;
         if (mode === 'used') {
-            body = view.usedUsd === null ? '?' : fmtUsd(view.usedUsd);
+            body = view.usedUsd === null ? '?' : `${fmtUsd(view.usedUsd)} used`;
         } else if (mode === 'balance') {
-            body = view.unlimited ? '∞' : (view.balanceUsd === null ? '?' : fmtUsd(view.balanceUsd));
+            if (view.unlimited) {
+                body = '∞';
+            } else {
+                body = view.balanceUsd === null ? '?' : `${fmtUsd(view.balanceUsd)} left`;
+            }
         } else if (mode === 'percent') {
             if (view.unlimited) {
                 body = '∞';
@@ -68,11 +72,13 @@ export class MochiApiBalanceWidget implements Widget {
                 body = '?';
             }
         } else if (view.unlimited) {
-            body = view.usedUsd === null ? '∞' : `∞ · ${fmtUsd(view.usedUsd)}`;
+            // unlimited: show "∞ · $X used" so the dollar amount is unambiguous
+            body = view.usedUsd === null ? '∞' : `∞ · ${fmtUsd(view.usedUsd)} used`;
         } else {
-            const bal = view.balanceUsd === null ? '?' : fmtUsd(view.balanceUsd);
-            const used = view.usedUsd === null ? '?' : fmtUsd(view.usedUsd);
-            body = `${bal} / ${used}`;
+            // limited: show "$bal left · $used used" so both sides are labelled
+            const bal = view.balanceUsd === null ? '?' : `${fmtUsd(view.balanceUsd)} left`;
+            const used = view.usedUsd === null ? '?' : `${fmtUsd(view.usedUsd)} used`;
+            body = `${bal} · ${used}`;
         }
 
         const decorated = view.stale ? `${body}*` : body;
