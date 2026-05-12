@@ -25,71 +25,48 @@ Everything else (widgets, TUI, layout, powerline, themes) is untouched and track
 
 Bearer auth (`Authorization: Bearer sk-...`). No cookies, no session.
 
-## Install
+## Install (one-shot)
 
-Requires **Node.js ≥ 14**. Not on npm yet — install from a GitHub source tarball:
+Requires **Node.js ≥ 14**. Two commands total — install the package, then run the setup.
+
+> **Windows prerequisite for the powerline look:** The default layout uses Nerd Font glyphs (``, ``) as Powerline separators. Without a Nerd Font, your terminal renders them as `?` boxes. Install one (`winget install DEVCOM.JetBrainsMonoNerdFont`) and set it as the font face in Windows Terminal / your terminal of choice. See [docs/WINDOWS.md § Powerline Font Support](docs/WINDOWS.md#powerline-font-support).
+
+### macOS / Linux / Windows (PowerShell)
 
 ```bash
+# 1. install (same command on all three OSes)
 npm install -g https://github.com/Subaru486desuwa/mochiapi-statusline/archive/refs/heads/main.tar.gz
+
+# 2. interactive setup — paste your MochiAPI token when prompted
+mochiapi-statusline --mochiapi-setup
 ```
+
+Grab your token from <https://mochiapi.com/dashboard> first; the setup will paste it into the right place. By default `--mochiapi-setup` will:
+
+1. Save your token + base URL to `~/.config/mochiapi-statusline/config.json` (or `%APPDATA%\mochiapi-statusline\config.json` on Windows)
+2. Probe the balance endpoint to confirm the token works
+3. Write the recommended **dracula three-line powerline layout** to `~/.config/ccstatusline/settings.json` (or merge a Mochi balance row into an existing one)
+4. Point Claude Code's `~/.claude/settings.json` `statusLine.command` at `mochiapi-statusline`
+
+Open a fresh Claude Code session and the status line should light up.
 
 The pre-built `dist/ccstatusline.js` is committed in the repo, so the tarball install drops the binary straight in — no build step runs on your machine.
 
 > ℹ️ Avoid `npm install -g github:Subaru486desuwa/mochiapi-statusline`. npm's git-URL install path strips files outside `package.json#files` during its prepare step and ends up with a broken symlink. The tarball URL above is the reliable form.
 
-### macOS / Linux
+### Non-interactive / scripted
+
+Set both env vars before running setup:
 
 ```bash
-# 1. install
-npm install -g https://github.com/Subaru486desuwa/mochiapi-statusline/archive/refs/heads/main.tar.gz
-
-# 2. configure (replace sk-xxxx with your MochiAPI token)
-MOCHIAPI_BASE_URL=https://mochiapi.com MOCHIAPI_TOKEN=sk-xxxx mochiapi-statusline --mochiapi-setup
-
-# 3. wire it into Claude Code
-mkdir -p ~/.claude
-# If ~/.claude/settings.json already exists, edit it to add the statusLine field;
-# otherwise just create it:
-cat > ~/.claude/settings.json <<'JSON'
-{ "statusLine": { "type": "command", "command": "mochiapi-statusline" } }
-JSON
-
-# 4. (optional) open the TUI to add the widget to a status line
-mochiapi-statusline
-# → pick a line → Add widget → search "MochiAPI" → choose display mode
+MOCHIAPI_TOKEN=sk-xxxx MOCHIAPI_BASE_URL=https://mochiapi.com mochiapi-statusline --mochiapi-setup
 ```
 
-### Windows (PowerShell)
+### Skip parts of the auto-setup
 
-> **Prerequisite for the powerline look.** The recommended layout below uses Nerd Font glyphs (``, ``) as Powerline separators. Without a Nerd Font, your terminal renders them as `?` boxes. Install one (`winget install DEVCOM.JetBrainsMonoNerdFont`) and set it as the font face in Windows Terminal / your terminal of choice. See [docs/WINDOWS.md § Powerline Font Support](docs/WINDOWS.md#powerline-font-support) for the full font setup.
-
-```powershell
-# 1. make sure Node.js ≥ 14 is installed (https://nodejs.org → LTS works)
-node --version
-
-# 2. install (run PowerShell as Administrator or use --prefix to avoid permission issues)
-npm install -g https://github.com/Subaru486desuwa/mochiapi-statusline/archive/refs/heads/main.tar.gz
-
-# 3. configure
-$env:MOCHIAPI_BASE_URL = "https://mochiapi.com"
-$env:MOCHIAPI_TOKEN    = "sk-xxxx"
-mochiapi-statusline --mochiapi-setup
-
-# 4. wire it into Claude Code (%USERPROFILE%\.claude\settings.json)
-$claudeDir = "$env:USERPROFILE\.claude"
-New-Item -ItemType Directory -Path $claudeDir -Force | Out-Null
-$cfg = "$claudeDir\settings.json"
-if (Test-Path $cfg) {
-    # merge into existing settings.json
-    $j = Get-Content $cfg -Raw | ConvertFrom-Json
-    $j | Add-Member -Force -NotePropertyName statusLine -NotePropertyValue (@{ type="command"; command="mochiapi-statusline" })
-    $j | ConvertTo-Json -Depth 10 | Set-Content $cfg -Encoding UTF8
-} else {
-    '{ "statusLine": { "type": "command", "command": "mochiapi-statusline" } }' | Set-Content $cfg -Encoding UTF8
-}
-
-# 5. (optional) open the TUI to customize widgets
-mochiapi-statusline
+```bash
+mochiapi-statusline --mochiapi-setup --skip-statusline    # don't touch ~/.config/ccstatusline/settings.json
+mochiapi-statusline --mochiapi-setup --skip-claude-wire   # don't touch ~/.claude/settings.json
 ```
 
 ### Where files live
@@ -136,89 +113,29 @@ Unlimited tokens (`hard_limit_usd ≥ 1e7`) show `∞` (`balance`/`percent` mode
 
 A trailing `*` means the cached value is older than `2 × refreshIntervalSec` — usually the network or the upstream went away. The widget keeps rendering the last good number while the background refresher retries.
 
-## Recommended layout (dracula powerline + MochiAPI)
+## What the default layout looks like
 
-The "screenshot" layout from the README — three lines, dracula colors, MochiAPI balance on its own row. Drop this into your ccstatusline settings file (path below).
+The dracula three-line layout that `--mochiapi-setup` writes to `~/.config/ccstatusline/settings.json`:
 
-| OS | Path |
-|---|---|
-| macOS / Linux | `~/.config/ccstatusline/settings.json` |
-| Windows | `%USERPROFILE%\.config\ccstatusline\settings.json` |
-
-> ℹ️ This is the upstream ccstatusline TUI's settings file (not the MochiAPI token config in `~/.config/mochiapi-statusline/`). They're separate.
-
-The layout:
-- **Line 1**: `模型 / Opus 4.7 (1M context) / 上下文 / <tokens> / <branch> / <changes>`
+- **Line 1**: `模型 / Sonnet 4.6 (1M context) / 上下文 / <tokens> / <branch> / <changes>` — branch+changes auto-hide outside a git repo (`hideNoGit` flag); the model name keeps its `(1M context)` suffix (`keepContext` flag, fork-only).
 - **Line 2**: `时段用量 / 5.0% / 时段 / 3h41m / 重置 / 1h18m / 周用量 / 12.0% / TPS / <t/s>`
-- **Line 3**: `Mochi / ∞ · $1.172` (MochiAPI Balance widget, combined mode)
+- **Line 3**: `Mochi / ∞ · $1.172` — MochiAPI Balance widget in combined mode.
 
-<details>
-<summary>Full <code>settings.json</code></summary>
+To customize, launch the TUI: `mochiapi-statusline`. To inspect or hand-edit the JSON, look at `~/.config/ccstatusline/settings.json` (macOS / Linux) or `%USERPROFILE%\.config\ccstatusline\settings.json` (Windows). That file is the upstream ccstatusline TUI's settings — distinct from `~/.config/mochiapi-statusline/config.json` which holds your token.
 
-```json
-{
-  "version": 3,
-  "lines": [
-    [
-      { "id": "L1-lbl-model", "type": "custom-text", "color": "white", "backgroundColor": "bgBlue", "bold": true, "customText": "模型" },
-      { "id": "L1-model", "type": "model", "color": "white", "backgroundColor": "bgBlue", "bold": true, "rawValue": true },
-      { "id": "L1-lbl-ctx", "type": "custom-text", "color": "white", "backgroundColor": "bgBrightBlack", "bold": true, "customText": "上下文" },
-      { "id": "L1-ctx", "type": "context-length", "color": "white", "backgroundColor": "bgBrightBlack", "bold": true, "rawValue": true },
-      { "id": "L1-branch", "type": "git-branch", "color": "white", "backgroundColor": "bgMagenta", "bold": true, "rawValue": true },
-      { "id": "L1-changes", "type": "git-changes", "color": "white", "backgroundColor": "bgRed", "bold": true, "rawValue": true }
-    ],
-    [
-      { "id": "L2-lbl-used", "type": "custom-text", "color": "black", "backgroundColor": "bgGreen", "bold": true, "customText": "时段用量" },
-      { "id": "L2-used", "type": "session-usage", "color": "black", "backgroundColor": "bgGreen", "bold": true, "rawValue": true },
-      { "id": "L2-lbl-block", "type": "custom-text", "color": "white", "backgroundColor": "bgBrightBlack", "bold": true, "customText": "时段" },
-      { "id": "L2-block", "type": "block-timer", "color": "white", "backgroundColor": "bgBrightBlack", "bold": true, "rawValue": true, "metadata": { "compact": "true" } },
-      { "id": "L2-lbl-reset", "type": "custom-text", "color": "black", "backgroundColor": "bgGreen", "bold": true, "customText": "重置" },
-      { "id": "L2-reset", "type": "reset-timer", "color": "black", "backgroundColor": "bgGreen", "bold": true, "rawValue": true, "metadata": { "compact": "true" } },
-      { "id": "L2-lbl-weekly", "type": "custom-text", "color": "white", "backgroundColor": "bgMagenta", "bold": true, "customText": "周用量" },
-      { "id": "L2-weekly", "type": "weekly-usage", "color": "white", "backgroundColor": "bgMagenta", "bold": true, "rawValue": true },
-      { "id": "L2-lbl-sum", "type": "custom-text", "color": "white", "backgroundColor": "bgRed", "bold": true, "customText": "TPS" },
-      { "id": "L2-sum", "type": "total-speed", "color": "white", "backgroundColor": "bgRed", "bold": true, "rawValue": true }
-    ],
-    [
-      { "id": "L3-lbl-mochi", "type": "custom-text", "color": "black", "backgroundColor": "bgCyan", "bold": true, "customText": "Mochi" },
-      { "id": "L3-mochi", "type": "mochiapi-balance", "color": "black", "backgroundColor": "bgCyan", "bold": true, "rawValue": true, "metadata": { "mode": "combined" } }
-    ]
-  ],
-  "flexMode": "full",
-  "compactThreshold": 60,
-  "colorLevel": 2,
-  "defaultPadding": " ",
-  "inheritSeparatorColors": false,
-  "globalBold": false,
-  "minimalistMode": false,
-  "powerline": {
-    "enabled": true,
-    "separators": ["", ""],
-    "separatorInvertBackground": [true, true],
-    "startCaps": ["", ""],
-    "endCaps": ["", ""],
-    "theme": "dracula",
-    "autoAlign": false,
-    "continueThemeAcrossLines": false
-  }
-}
-```
-
-</details>
-
-After saving, smoke-test it without launching Claude Code:
+### Smoke test without launching Claude Code
 
 ```bash
 # macOS / Linux
-echo '{"session_id":"test","model":{"id":"claude-opus-4-7","display_name":"Opus 4.7 (1M context)"},"workspace":{"current_dir":".","project_dir":"."},"cost":{"total_cost_usd":1.172},"transcript_path":"/tmp/nonexistent","output_style":{"name":"default"}}' | mochiapi-statusline
+echo '{"session_id":"test","model":{"id":"claude-sonnet-4-6","display_name":"Sonnet 4.6 (1M context)"},"workspace":{"current_dir":".","project_dir":"."},"cost":{"total_cost_usd":0},"transcript_path":"/tmp/nonexistent","output_style":{"name":"default"}}' | mochiapi-statusline
 ```
 
 ```powershell
 # Windows PowerShell
-'{"session_id":"test","model":{"id":"claude-opus-4-7","display_name":"Opus 4.7 (1M context)"},"workspace":{"current_dir":".","project_dir":"."},"cost":{"total_cost_usd":1.172},"transcript_path":"NUL","output_style":{"name":"default"}}' | mochiapi-statusline
+'{"session_id":"test","model":{"id":"claude-sonnet-4-6","display_name":"Sonnet 4.6 (1M context)"},"workspace":{"current_dir":".","project_dir":"."},"cost":{"total_cost_usd":0},"transcript_path":"NUL","output_style":{"name":"default"}}' | mochiapi-statusline
 ```
 
-You should see three Powerline-styled rows in dracula colors. If separators show as `?` your terminal isn't using a Nerd Font — fix that first.
+Three Powerline-styled rows in dracula colors. If separators show as `?` your terminal isn't using a Nerd Font — fix that first.
 
 ## Cross-platform notes
 

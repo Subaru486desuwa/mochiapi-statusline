@@ -52668,6 +52668,27 @@ function getMatchSegments(text, query) {
   return segments;
 }
 
+// src/widgets/shared/metadata.ts
+function isMetadataFlagEnabled(item, key) {
+  return item.metadata?.[key] === "true";
+}
+function toggleMetadataFlag(item, key) {
+  return {
+    ...item,
+    metadata: {
+      ...item.metadata,
+      [key]: (!isMetadataFlagEnabled(item, key)).toString()
+    }
+  };
+}
+function removeMetadataKeys(item, keys2) {
+  const nextMetadata = Object.fromEntries(Object.entries(item.metadata ?? {}).filter(([key]) => !keys2.includes(key)));
+  return {
+    ...item,
+    metadata: Object.keys(nextMetadata).length > 0 ? nextMetadata : undefined
+  };
+}
+
 // src/widgets/Model.ts
 class ModelWidget {
   getDefaultColor() {
@@ -52686,14 +52707,16 @@ class ModelWidget {
     return { displayText: this.getDisplayName() };
   }
   render(item, context, settings) {
+    const keepContext = isMetadataFlagEnabled(item, KEEP_CONTEXT_KEY);
     if (context.isPreview) {
-      return item.rawValue ? "Claude" : "Model: Claude";
+      const preview = keepContext ? "Claude (1M context)" : "Claude";
+      return item.rawValue ? preview : `Model: ${preview}`;
     }
     const model = context.data?.model;
     const modelDisplayName = typeof model === "string" ? model : model?.display_name ?? model?.id;
     if (modelDisplayName) {
-      const shortName = modelDisplayName.replace(/\s*\(.*\)$/, "");
-      return item.rawValue ? shortName : `Model: ${shortName}`;
+      const name = keepContext ? modelDisplayName : modelDisplayName.replace(/\s*\(.*\)$/, "");
+      return item.rawValue ? name : `Model: ${name}`;
     }
     return null;
   }
@@ -52704,6 +52727,8 @@ class ModelWidget {
     return true;
   }
 }
+var KEEP_CONTEXT_KEY = "keepContext";
+var init_Model = () => {};
 
 // src/widgets/OutputStyle.ts
 class OutputStyleWidget {
@@ -53032,27 +53057,6 @@ var init_hyperlink = __esm(() => {
 // src/widgets/shared/editor-display.ts
 function makeModifierText(modifiers) {
   return modifiers.length > 0 ? `(${modifiers.join(", ")})` : undefined;
-}
-
-// src/widgets/shared/metadata.ts
-function isMetadataFlagEnabled(item, key) {
-  return item.metadata?.[key] === "true";
-}
-function toggleMetadataFlag(item, key) {
-  return {
-    ...item,
-    metadata: {
-      ...item.metadata,
-      [key]: (!isMetadataFlagEnabled(item, key)).toString()
-    }
-  };
-}
-function removeMetadataKeys(item, keys2) {
-  const nextMetadata = Object.fromEntries(Object.entries(item.metadata ?? {}).filter(([key]) => !keys2.includes(key)));
-  return {
-    ...item,
-    metadata: Object.keys(nextMetadata).length > 0 ? nextMetadata : undefined
-  };
 }
 
 // src/widgets/shared/git-no-git.ts
@@ -67203,6 +67207,7 @@ var init_MochiApiBalance = __esm(() => {
 
 // src/widgets/index.ts
 var init_widgets = __esm(async () => {
+  init_Model();
   init_GitBranch();
   init_GitChanges();
   init_GitInsertions();
@@ -68298,37 +68303,155 @@ var exports_mochiapi_setup = {};
 __export(exports_mochiapi_setup, {
   runMochiApiSetup: () => runMochiApiSetup
 });
+import * as fs16 from "fs";
+import * as path13 from "path";
 import { createInterface } from "readline/promises";
 function readEnv(name) {
   const v = process.env[name];
   return v?.trim() ? v.trim() : undefined;
 }
+function parseFlags(argv) {
+  return {
+    skipStatusline: argv.includes("--skip-statusline"),
+    skipClaudeWire: argv.includes("--skip-claude-wire")
+  };
+}
+function buildRecommendedSettings() {
+  return {
+    version: 3,
+    lines: [
+      [
+        { id: "L1-lbl-model", type: "custom-text", color: "white", backgroundColor: "bgBlue", bold: true, customText: "模型" },
+        { id: "L1-model", type: "model", color: "white", backgroundColor: "bgBlue", bold: true, rawValue: true, metadata: { keepContext: "true" } },
+        { id: "L1-lbl-ctx", type: "custom-text", color: "white", backgroundColor: "bgBrightBlack", bold: true, customText: "上下文" },
+        { id: "L1-ctx", type: "context-length", color: "white", backgroundColor: "bgBrightBlack", bold: true, rawValue: true },
+        { id: "L1-branch", type: "git-branch", color: "white", backgroundColor: "bgMagenta", bold: true, rawValue: true, metadata: { hideNoGit: "true" } },
+        { id: "L1-changes", type: "git-changes", color: "white", backgroundColor: "bgRed", bold: true, rawValue: true, metadata: { hideNoGit: "true" } }
+      ],
+      [
+        { id: "L2-lbl-used", type: "custom-text", color: "black", backgroundColor: "bgGreen", bold: true, customText: "时段用量" },
+        { id: "L2-used", type: "session-usage", color: "black", backgroundColor: "bgGreen", bold: true, rawValue: true },
+        { id: "L2-lbl-block", type: "custom-text", color: "white", backgroundColor: "bgBrightBlack", bold: true, customText: "时段" },
+        { id: "L2-block", type: "block-timer", color: "white", backgroundColor: "bgBrightBlack", bold: true, rawValue: true, metadata: { compact: "true" } },
+        { id: "L2-lbl-reset", type: "custom-text", color: "black", backgroundColor: "bgGreen", bold: true, customText: "重置" },
+        { id: "L2-reset", type: "reset-timer", color: "black", backgroundColor: "bgGreen", bold: true, rawValue: true, metadata: { compact: "true" } },
+        { id: "L2-lbl-weekly", type: "custom-text", color: "white", backgroundColor: "bgMagenta", bold: true, customText: "周用量" },
+        { id: "L2-weekly", type: "weekly-usage", color: "white", backgroundColor: "bgMagenta", bold: true, rawValue: true },
+        { id: "L2-lbl-sum", type: "custom-text", color: "white", backgroundColor: "bgRed", bold: true, customText: "TPS" },
+        { id: "L2-sum", type: "total-speed", color: "white", backgroundColor: "bgRed", bold: true, rawValue: true }
+      ],
+      [
+        { id: "L3-lbl-mochi", type: "custom-text", color: "black", backgroundColor: "bgCyan", bold: true, customText: "Mochi" },
+        { id: "L3-mochi", type: MOCHI_BALANCE_TYPE, color: "black", backgroundColor: "bgCyan", bold: true, rawValue: true, metadata: { mode: "combined" } }
+      ]
+    ],
+    flexMode: "full",
+    compactThreshold: 60,
+    colorLevel: 2,
+    defaultPadding: " ",
+    inheritSeparatorColors: false,
+    globalBold: false,
+    minimalistMode: false,
+    powerline: {
+      enabled: true,
+      separators: ["", ""],
+      separatorInvertBackground: [true, true],
+      startCaps: ["", ""],
+      endCaps: ["", ""],
+      theme: "dracula",
+      autoAlign: false,
+      continueThemeAcrossLines: false
+    }
+  };
+}
+function hasMochiBalanceWidget(settings) {
+  if (!Array.isArray(settings.lines))
+    return false;
+  for (const line of settings.lines) {
+    if (!Array.isArray(line))
+      continue;
+    for (const item of line) {
+      if (item.type === MOCHI_BALANCE_TYPE) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+async function writeStatuslineSettings() {
+  const settingsPath2 = getConfigPath();
+  const dir = path13.dirname(settingsPath2);
+  if (!fs16.existsSync(settingsPath2)) {
+    await fs16.promises.mkdir(dir, { recursive: true });
+    const recommended = buildRecommendedSettings();
+    await fs16.promises.writeFile(settingsPath2, JSON.stringify(recommended, null, 2), "utf-8");
+    return "created";
+  }
+  let existing;
+  try {
+    existing = JSON.parse(await fs16.promises.readFile(settingsPath2, "utf-8"));
+  } catch {
+    const backup = `${settingsPath2}.bak-${Date.now()}`;
+    await fs16.promises.copyFile(settingsPath2, backup);
+    console.warn(`Existing ${settingsPath2} was unparseable; backed up to ${backup}.`);
+    const recommended = buildRecommendedSettings();
+    await fs16.promises.writeFile(settingsPath2, JSON.stringify(recommended, null, 2), "utf-8");
+    return "created";
+  }
+  if (hasMochiBalanceWidget(existing)) {
+    return "has-widget";
+  }
+  if (!Array.isArray(existing.lines))
+    existing.lines = [];
+  existing.lines.push([
+    { id: "L3-lbl-mochi", type: "custom-text", color: "black", backgroundColor: "bgCyan", bold: true, customText: "Mochi" },
+    { id: "L3-mochi", type: MOCHI_BALANCE_TYPE, color: "black", backgroundColor: "bgCyan", bold: true, rawValue: true, metadata: { mode: "combined" } }
+  ]);
+  await fs16.promises.writeFile(settingsPath2, JSON.stringify(existing, null, 2), "utf-8");
+  return "appended";
+}
+async function wireClaudeStatusLine() {
+  const settings = await loadClaudeSettings({ logErrors: false });
+  const current = settings.statusLine?.command;
+  if (current === STATUSLINE_COMMAND) {
+    return "already";
+  }
+  const wasSet = !!current;
+  const next = {
+    ...settings,
+    statusLine: { type: "command", command: STATUSLINE_COMMAND, padding: 0 }
+  };
+  await saveClaudeSettings(next);
+  return wasSet ? "replaced" : "wired";
+}
 async function runMochiApiSetup() {
+  const opts = parseFlags(process.argv.slice(2));
   const envToken = readEnv("MOCHIAPI_TOKEN");
   const envBase = readEnv("MOCHIAPI_BASE_URL");
   const envInterval = readEnv("MOCHIAPI_REFRESH_SEC");
+  const existing = loadMochiConfig();
   let token = envToken;
-  let baseUrl = envBase ?? "https://mochiapi.com";
-  let refresh = envInterval ? Number(envInterval) : 30;
+  let baseUrl = envBase ?? existing?.baseUrl ?? "https://mochiapi.com";
+  let refresh = envInterval ? Number(envInterval) : existing?.refreshIntervalSec ?? 30;
   if (!token) {
-    const existing = loadMochiConfig();
+    console.log("— MochiAPI statusline setup —");
+    console.log("Paste your MochiAPI token from https://mochiapi.com/dashboard");
     const rl = createInterface({ input: process.stdin, output: process.stdout });
     try {
-      const baseAns = await rl.question(`Base URL [${existing?.baseUrl ?? baseUrl}]: `);
+      const baseAns = await rl.question(`Base URL [${baseUrl}]: `);
       if (baseAns.trim())
         baseUrl = baseAns.trim();
-      else if (existing?.baseUrl)
-        baseUrl = existing.baseUrl;
       const tokenAns = await rl.question(existing?.token ? "Token (enter to keep existing): " : "Token (sk-...): ");
       if (tokenAns.trim())
         token = tokenAns.trim();
       else if (existing?.token)
         token = existing.token;
-      const intervalAns = await rl.question(`Refresh interval seconds [${existing?.refreshIntervalSec ?? refresh}]: `);
-      if (intervalAns.trim())
-        refresh = Number(intervalAns.trim()) || refresh;
-      else if (existing?.refreshIntervalSec)
-        refresh = existing.refreshIntervalSec;
+      const intervalAns = await rl.question(`Refresh interval seconds [${refresh}]: `);
+      if (intervalAns.trim()) {
+        const parsed = Number(intervalAns.trim());
+        if (Number.isFinite(parsed) && parsed > 0)
+          refresh = parsed;
+      }
     } finally {
       rl.close();
     }
@@ -68340,18 +68463,53 @@ async function runMochiApiSetup() {
   }
   const cfg = { baseUrl: baseUrl.replace(/\/+$/, ""), token, refreshIntervalSec: refresh };
   saveMochiConfig(cfg);
-  console.log(`Saved config to ${MOCHI_CONFIG_PATH}`);
+  console.log(`✓ token config → ${MOCHI_CONFIG_PATH}`);
   const cache3 = await fetchBalance(cfg);
   writeCache2(cache3);
   if (cache3.ok) {
-    console.log(`Probe OK: hard_limit_usd=${cache3.hardLimitUsd} total_usage_cent=${cache3.totalUsageCent}`);
+    console.log(`✓ balance probe OK (hard_limit_usd=${cache3.hardLimitUsd}, used_cent=${cache3.totalUsageCent})`);
   } else {
-    console.error(`Probe failed: ${cache3.error}`);
+    console.error(`✗ balance probe failed: ${cache3.error}`);
     process.exitCode = 2;
   }
+  if (!opts.skipStatusline) {
+    try {
+      const result2 = await writeStatuslineSettings();
+      const ccPath = getConfigPath();
+      if (result2 === "created")
+        console.log(`✓ ccstatusline layout (dracula 3-line) → ${ccPath}`);
+      else if (result2 === "appended")
+        console.log(`✓ Mochi balance widget appended → ${ccPath}`);
+      else
+        console.log(`• ccstatusline settings.json already has the Mochi widget → ${ccPath}`);
+    } catch (err) {
+      console.error(`✗ ccstatusline settings.json write failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+  if (!opts.skipClaudeWire) {
+    try {
+      const result2 = await wireClaudeStatusLine();
+      const cPath = getClaudeSettingsPath();
+      if (result2 === "wired")
+        console.log(`✓ Claude Code statusLine wired → ${cPath}`);
+      else if (result2 === "replaced")
+        console.log(`✓ Claude Code statusLine replaced with mochiapi-statusline → ${cPath}`);
+      else
+        console.log(`• Claude Code statusLine already points to mochiapi-statusline → ${cPath}`);
+    } catch (err) {
+      console.error(`✗ Claude Code settings.json patch failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+  console.log("");
+  console.log("Setup complete. Open a new Claude Code session to see the status line.");
 }
-var init_mochiapi_setup = __esm(() => {
+var STATUSLINE_COMMAND = "mochiapi-statusline", MOCHI_BALANCE_TYPE = "mochiapi-balance";
+var init_mochiapi_setup = __esm(async () => {
   init_mochiapi();
+  await __promiseAll([
+    init_claude_settings(),
+    init_config()
+  ]);
 });
 
 // src/ccstatusline.ts
@@ -74631,7 +74789,7 @@ async function main() {
     return;
   }
   if (process.argv.includes("--mochiapi-setup")) {
-    const { runMochiApiSetup: runMochiApiSetup2 } = await Promise.resolve().then(() => (init_mochiapi_setup(), exports_mochiapi_setup));
+    const { runMochiApiSetup: runMochiApiSetup2 } = await init_mochiapi_setup().then(() => exports_mochiapi_setup);
     await runMochiApiSetup2();
     return;
   }
