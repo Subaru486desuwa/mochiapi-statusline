@@ -67064,10 +67064,6 @@ async function fetchBalance(cfg) {
       fetchedAt: now2,
       ok: false,
       userQuotaUsd: prev?.userQuotaUsd ?? null,
-      hardLimitUsd: prev?.hardLimitUsd ?? null,
-      softLimitUsd: prev?.softLimitUsd ?? null,
-      totalUsageCent: prev?.totalUsageCent ?? null,
-      accessUntil: prev?.accessUntil ?? null,
       error: e instanceof Error ? e.message : String(e)
     };
   }
@@ -67101,22 +67097,10 @@ function viewFromCache(cache3, cfg) {
     } else {
       balanceUsd = q;
     }
-  } else if (typeof cache3.hardLimitUsd === "number") {
-    const hard = cache3.hardLimitUsd;
-    const usedUsd2 = typeof cache3.totalUsageCent === "number" ? cache3.totalUsageCent / 100 : null;
-    if (hard >= UNLIMITED_THRESHOLD) {
-      unlimited = true;
-    } else if (usedUsd2 !== null) {
-      balanceUsd = hard - usedUsd2;
-    }
   }
-  const usedUsd = typeof cache3.totalUsageCent === "number" ? cache3.totalUsageCent / 100 : null;
-  const totalUsd = typeof cache3.hardLimitUsd === "number" && cache3.hardLimitUsd < UNLIMITED_THRESHOLD ? cache3.hardLimitUsd : null;
   const stale = cfg !== null && Date.now() - cache3.fetchedAt > cfg.refreshIntervalSec * 2000;
   return {
     balanceUsd,
-    usedUsd,
-    totalUsd,
     unlimited,
     stale,
     error: cache3.ok ? undefined : cache3.error
@@ -67149,7 +67133,7 @@ class MochiApiBalanceWidget {
     return "cyan";
   }
   getDescription() {
-    return "MochiAPI token balance / usage from /v1/dashboard/billing/*";
+    return "MochiAPI account balance from /api/user/dashboard/balance";
   }
   getDisplayName() {
     return "MochiAPI Balance";
@@ -67160,12 +67144,10 @@ class MochiApiBalanceWidget {
   getEditorDisplay(_item) {
     return { displayText: this.getDisplayName() };
   }
-  render(item, context, _settings) {
-    const mode = item.metadata?.mode ?? "combined";
-    const labeled = !item.rawValue;
+  render(_item, context, _settings) {
+    const labeled = !_item.rawValue;
     if (context.isPreview) {
-      const stub = mode === "balance" ? "$8.42" : mode === "used" ? "$1.58 used" : mode === "percent" ? "15.8%" : "$8.42 left · $1.58 used";
-      return labeled ? `Mochi: ${stub}` : stub;
+      return labeled ? "Mochi: $8.42" : "$8.42";
     }
     const cfg = loadMochiConfig();
     if (!cfg) {
@@ -67177,28 +67159,10 @@ class MochiApiBalanceWidget {
     if (!view)
       return labeled ? "Mochi: ..." : "...";
     let body;
-    if (mode === "used") {
-      body = view.usedUsd === null ? "?" : `${fmtUsd(view.usedUsd)} used`;
-    } else if (mode === "balance") {
-      if (view.unlimited) {
-        body = "∞";
-      } else {
-        body = view.balanceUsd === null ? "?" : fmtUsd(view.balanceUsd);
-      }
-    } else if (mode === "percent") {
-      if (view.unlimited) {
-        body = "∞";
-      } else if (view.totalUsd && view.usedUsd !== null && view.totalUsd > 0) {
-        body = `${(view.usedUsd / view.totalUsd * 100).toFixed(1)}%`;
-      } else {
-        body = "?";
-      }
-    } else if (view.unlimited) {
-      body = view.usedUsd === null ? "∞" : `∞ · ${fmtUsd(view.usedUsd)} used`;
+    if (view.unlimited) {
+      body = "∞";
     } else {
-      const bal = view.balanceUsd === null ? "?" : `${fmtUsd(view.balanceUsd)} left`;
-      const used = view.usedUsd === null ? "?" : `${fmtUsd(view.usedUsd)} used`;
-      body = `${bal} · ${used}`;
+      body = view.balanceUsd === null ? "?" : fmtUsd(view.balanceUsd);
     }
     const decorated = view.stale ? `${body}*` : body;
     return labeled ? `Mochi: ${decorated}` : decorated;
@@ -68352,7 +68316,7 @@ function buildRecommendedSettings() {
       ],
       [
         { id: "L3-lbl-mochi", type: "custom-text", color: "black", backgroundColor: "bgCyan", bold: true, customText: "用户余额" },
-        { id: "L3-mochi", type: MOCHI_BALANCE_TYPE, color: "black", backgroundColor: "bgCyan", bold: true, rawValue: true, metadata: { mode: "balance" } }
+        { id: "L3-mochi", type: MOCHI_BALANCE_TYPE, color: "black", backgroundColor: "bgCyan", bold: true, rawValue: true }
       ]
     ],
     flexMode: "full",
@@ -68422,7 +68386,7 @@ async function writeStatuslineSettings(opts) {
     existing.lines = [];
   existing.lines.push([
     { id: "L3-lbl-mochi", type: "custom-text", color: "black", backgroundColor: "bgCyan", bold: true, customText: "用户余额" },
-    { id: "L3-mochi", type: MOCHI_BALANCE_TYPE, color: "black", backgroundColor: "bgCyan", bold: true, rawValue: true, metadata: { mode: "balance" } }
+    { id: "L3-mochi", type: MOCHI_BALANCE_TYPE, color: "black", backgroundColor: "bgCyan", bold: true, rawValue: true }
   ]);
   await fs16.promises.writeFile(settingsPath2, JSON.stringify(existing, null, 2), "utf-8");
   return { result: "appended" };

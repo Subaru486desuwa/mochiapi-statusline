@@ -104,15 +104,11 @@ If you see `Mochi: cfg?` the config file isn't found — re-run `--mochiapi-setu
 
 ## Widget options
 
-`metadata.mode` (string):
-- `balance` (default)  remaining only — `$X`, or `∞` for unlimited tokens
-- `used`  consumed only — `$X used`
-- `combined`  both sides — `$X left · $Y used`, or `∞ · $Y used` for unlimited
-- `percent`  `used / total * 100`
-
-> ℹ️ The dashboard API today exposes the **token's** hard limit and 30-day usage, not the user's **account balance**. Unlimited tokens (`hard_limit_usd ≥ 1e7`) therefore show `∞` in the balance/percent modes. When the dashboard exposes a real account-level balance endpoint, this widget will switch to showing that — until then, `balance` is the closest "remaining" signal we have.
+The widget renders the **account balance** (`data.user_quota_usd` from `/api/user/dashboard/balance`) as either `$X.XX` or `∞` (when the returned amount ≥ `1e7`). There are no display modes — the body is a single number.
 
 A trailing `*` means the cached value is older than `2 × refreshIntervalSec` — usually the network or the upstream went away. The widget keeps rendering the last good number while the background refresher retries.
+
+> A daily-spend endpoint is on the dashboard's roadmap. When it lands, this widget will grow a "used today" row alongside the balance.
 
 ## What the default layout looks like
 

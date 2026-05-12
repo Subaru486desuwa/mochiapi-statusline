@@ -24,15 +24,7 @@ export interface MochiApiCache {
     fetchedAt: number;
     ok: boolean;
     /** Account balance from /api/user/dashboard/balance (data.user_quota_usd). */
-    userQuotaUsd?: number | null;
-    /** Legacy: token hard limit from /v1/dashboard/billing/subscription. Optional for backward-compat with old cache files. */
-    hardLimitUsd?: number | null;
-    /** Legacy: token soft limit from /v1/dashboard/billing/subscription. */
-    softLimitUsd?: number | null;
-    /** Legacy: 30-day token usage in cents from /v1/dashboard/billing/usage. */
-    totalUsageCent?: number | null;
-    /** Legacy: subscription expiry timestamp. */
-    accessUntil?: number | null;
+    userQuotaUsd: number | null;
     error?: string;
 }
 
@@ -130,10 +122,6 @@ export async function fetchBalance(cfg: MochiApiConfig): Promise<MochiApiCache> 
             fetchedAt: now,
             ok: false,
             userQuotaUsd: prev?.userQuotaUsd ?? null,
-            hardLimitUsd: prev?.hardLimitUsd ?? null,
-            softLimitUsd: prev?.softLimitUsd ?? null,
-            totalUsageCent: prev?.totalUsageCent ?? null,
-            accessUntil: prev?.accessUntil ?? null,
             error: e instanceof Error ? e.message : String(e)
         };
     }
@@ -159,8 +147,6 @@ export function maybeRefreshInBackground(cfg: MochiApiConfig, cache: MochiApiCac
 
 export interface MochiBalanceView {
     balanceUsd: number | null;
-    usedUsd: number | null;
-    totalUsd: number | null;
     unlimited: boolean;
     stale: boolean;
     error?: string;
@@ -173,7 +159,6 @@ export function viewFromCache(cache: MochiApiCache | null, cfg: MochiApiConfig |
     let balanceUsd: number | null = null;
     let unlimited = false;
 
-    // Prefer the new account-balance endpoint (user_quota_usd).
     const q = cache.userQuotaUsd;
     if (typeof q === 'number') {
         if (q >= UNLIMITED_THRESHOLD) {
@@ -181,27 +166,12 @@ export function viewFromCache(cache: MochiApiCache | null, cfg: MochiApiConfig |
         } else {
             balanceUsd = q;
         }
-    } else if (typeof cache.hardLimitUsd === 'number') {
-        // Fallback: derive from legacy /v1/dashboard/billing/* fields if they're cached.
-        const hard = cache.hardLimitUsd;
-        const usedUsd = typeof cache.totalUsageCent === 'number' ? cache.totalUsageCent / 100 : null;
-        if (hard >= UNLIMITED_THRESHOLD) {
-            unlimited = true;
-        } else if (usedUsd !== null) {
-            balanceUsd = hard - usedUsd;
-        }
     }
 
-    const usedUsd = typeof cache.totalUsageCent === 'number' ? cache.totalUsageCent / 100 : null;
-    const totalUsd = typeof cache.hardLimitUsd === 'number' && cache.hardLimitUsd < UNLIMITED_THRESHOLD
-        ? cache.hardLimitUsd
-        : null;
     const stale = cfg !== null && Date.now() - cache.fetchedAt > cfg.refreshIntervalSec * 2000;
 
     return {
         balanceUsd,
-        usedUsd,
-        totalUsd,
         unlimited,
         stale,
         error: cache.ok ? undefined : cache.error

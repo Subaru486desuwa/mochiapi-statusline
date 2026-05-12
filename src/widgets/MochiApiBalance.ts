@@ -12,8 +12,6 @@ import {
     viewFromCache
 } from '../utils/mochiapi';
 
-type DisplayMode = 'balance' | 'used' | 'combined' | 'percent';
-
 function fmtUsd(v: number): string {
     if (v >= 1000)
         return `$${v.toFixed(0)}`;
@@ -24,7 +22,7 @@ function fmtUsd(v: number): string {
 
 export class MochiApiBalanceWidget implements Widget {
     getDefaultColor(): string { return 'cyan'; }
-    getDescription(): string { return 'MochiAPI token balance / usage from /v1/dashboard/billing/*'; }
+    getDescription(): string { return 'MochiAPI account balance from /api/user/dashboard/balance'; }
     getDisplayName(): string { return 'MochiAPI Balance'; }
     getCategory(): string { return 'MochiAPI'; }
 
@@ -32,16 +30,11 @@ export class MochiApiBalanceWidget implements Widget {
         return { displayText: this.getDisplayName() };
     }
 
-    render(item: WidgetItem, context: RenderContext, _settings: Settings): string | null {
-        const mode = ((item.metadata?.mode as DisplayMode | undefined) ?? 'combined');
-        const labeled = !item.rawValue;
+    render(_item: WidgetItem, context: RenderContext, _settings: Settings): string | null {
+        const labeled = !_item.rawValue;
 
         if (context.isPreview) {
-            const stub = mode === 'balance' ? '$8.42'
-                : mode === 'used' ? '$1.58 used'
-                    : mode === 'percent' ? '15.8%'
-                        : '$8.42 left · $1.58 used';
-            return labeled ? `Mochi: ${stub}` : stub;
+            return labeled ? 'Mochi: $8.42' : '$8.42';
         }
 
         const cfg = loadMochiConfig();
@@ -55,30 +48,10 @@ export class MochiApiBalanceWidget implements Widget {
             return labeled ? 'Mochi: ...' : '...';
 
         let body: string;
-        if (mode === 'used') {
-            body = view.usedUsd === null ? '?' : `${fmtUsd(view.usedUsd)} used`;
-        } else if (mode === 'balance') {
-            if (view.unlimited) {
-                body = '∞';
-            } else {
-                body = view.balanceUsd === null ? '?' : fmtUsd(view.balanceUsd);
-            }
-        } else if (mode === 'percent') {
-            if (view.unlimited) {
-                body = '∞';
-            } else if (view.totalUsd && view.usedUsd !== null && view.totalUsd > 0) {
-                body = `${(view.usedUsd / view.totalUsd * 100).toFixed(1)}%`;
-            } else {
-                body = '?';
-            }
-        } else if (view.unlimited) {
-            // unlimited: show "∞ · $X used" so the dollar amount is unambiguous
-            body = view.usedUsd === null ? '∞' : `∞ · ${fmtUsd(view.usedUsd)} used`;
+        if (view.unlimited) {
+            body = '∞';
         } else {
-            // limited: show "$bal left · $used used" so both sides are labelled
-            const bal = view.balanceUsd === null ? '?' : `${fmtUsd(view.balanceUsd)} left`;
-            const used = view.usedUsd === null ? '?' : `${fmtUsd(view.usedUsd)} used`;
-            body = `${bal} · ${used}`;
+            body = view.balanceUsd === null ? '?' : fmtUsd(view.balanceUsd);
         }
 
         const decorated = view.stale ? `${body}*` : body;
