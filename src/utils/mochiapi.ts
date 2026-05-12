@@ -23,10 +23,16 @@ export interface MochiApiConfig {
 export interface MochiApiCache {
     fetchedAt: number;
     ok: boolean;
-    hardLimitUsd: number | null;
-    softLimitUsd: number | null;
-    totalUsageCent: number | null;
-    accessUntil: number | null;
+    /** Account balance from /api/user/dashboard/balance (data.user_quota_usd). */
+    userQuotaUsd?: number | null;
+    /** Legacy: token hard limit from /v1/dashboard/billing/subscription. Optional for backward-compat with old cache files. */
+    hardLimitUsd?: number | null;
+    /** Legacy: token soft limit from /v1/dashboard/billing/subscription. */
+    softLimitUsd?: number | null;
+    /** Legacy: 30-day token usage in cents from /v1/dashboard/billing/usage. */
+    totalUsageCent?: number | null;
+    /** Legacy: subscription expiry timestamp. */
+    accessUntil?: number | null;
     error?: string;
 }
 
@@ -92,13 +98,6 @@ export function writeCache(cache: MochiApiCache): void {
     writeFileSync(MOCHI_CACHE_PATH, JSON.stringify(cache));
 }
 
-function ymd(d: Date): string {
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${y}-${m}-${day}`;
-}
-
 async function httpGet(url: string, token: string, timeoutMs = 12000): Promise<unknown> {
     const ctrl = new AbortController();
     const t = setTimeout(() => { ctrl.abort(); }, timeoutMs);
@@ -117,31 +116,20 @@ async function httpGet(url: string, token: string, timeoutMs = 12000): Promise<u
 
 export async function fetchBalance(cfg: MochiApiConfig): Promise<MochiApiCache> {
     const now = Date.now();
-    const today = new Date();
-    const thirtyAgo = new Date(today.getTime() - 30 * 86_400_000);
     try {
-        const [sub, use] = await Promise.all([
-            httpGet(`${cfg.baseUrl}/v1/dashboard/billing/subscription`, cfg.token),
-            httpGet(
-                `${cfg.baseUrl}/v1/dashboard/billing/usage?start_date=${ymd(thirtyAgo)}&end_date=${ymd(today)}`,
-                cfg.token
-            )
-        ]);
-        const s = sub as { hard_limit_usd?: number; soft_limit_usd?: number; access_until?: number };
-        const u = use as { total_usage?: number };
-        return {
-            fetchedAt: now,
-            ok: true,
-            hardLimitUsd: s.hard_limit_usd ?? null,
-            softLimitUsd: s.soft_limit_usd ?? null,
-            totalUsageCent: u.total_usage ?? null,
-            accessUntil: s.access_until ?? null
-        };
+        const resp = await httpGet(`${cfg.baseUrl}/api/user/dashboard/balance`, cfg.token);
+        const r = resp as { data?: { user_quota_usd?: unknown } };
+        const raw = r.data?.user_quota_usd;
+        const userQuotaUsd = typeof raw === 'number' && Number.isFinite(raw)
+            ? raw
+            : (typeof raw === 'string' && Number.isFinite(Number(raw)) ? Number(raw) : null);
+        return { fetchedAt: now, ok: true, userQuotaUsd };
     } catch (e) {
         const prev = readCache();
         return {
             fetchedAt: now,
             ok: false,
+            userQuotaUsd: prev?.userQuotaUsd ?? null,
             hardLimitUsd: prev?.hardLimitUsd ?? null,
             softLimitUsd: prev?.softLimitUsd ?? null,
             totalUsageCent: prev?.totalUsageCent ?? null,
@@ -181,13 +169,35 @@ export interface MochiBalanceView {
 export function viewFromCache(cache: MochiApiCache | null, cfg: MochiApiConfig | null): MochiBalanceView | null {
     if (!cache)
         return null;
-    const hard = cache.hardLimitUsd;
-    const usedCent = cache.totalUsageCent;
-    const unlimited = hard !== null && hard >= UNLIMITED_THRESHOLD;
-    const usedUsd = usedCent === null ? null : usedCent / 100;
-    const totalUsd = unlimited ? null : hard;
-    const balanceUsd = unlimited ? null : (hard !== null && usedUsd !== null ? hard - usedUsd : null);
+
+    let balanceUsd: number | null = null;
+    let unlimited = false;
+
+    // Prefer the new account-balance endpoint (user_quota_usd).
+    const q = cache.userQuotaUsd;
+    if (typeof q === 'number') {
+        if (q >= UNLIMITED_THRESHOLD) {
+            unlimited = true;
+        } else {
+            balanceUsd = q;
+        }
+    } else if (typeof cache.hardLimitUsd === 'number') {
+        // Fallback: derive from legacy /v1/dashboard/billing/* fields if they're cached.
+        const hard = cache.hardLimitUsd;
+        const usedUsd = typeof cache.totalUsageCent === 'number' ? cache.totalUsageCent / 100 : null;
+        if (hard >= UNLIMITED_THRESHOLD) {
+            unlimited = true;
+        } else if (usedUsd !== null) {
+            balanceUsd = hard - usedUsd;
+        }
+    }
+
+    const usedUsd = typeof cache.totalUsageCent === 'number' ? cache.totalUsageCent / 100 : null;
+    const totalUsd = typeof cache.hardLimitUsd === 'number' && cache.hardLimitUsd < UNLIMITED_THRESHOLD
+        ? cache.hardLimitUsd
+        : null;
     const stale = cfg !== null && Date.now() - cache.fetchedAt > cfg.refreshIntervalSec * 2000;
+
     return {
         balanceUsd,
         usedUsd,

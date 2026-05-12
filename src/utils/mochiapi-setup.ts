@@ -220,7 +220,7 @@ export async function runMochiApiSetup(): Promise<void> {
     const cache = await fetchBalance(cfg);
     writeCache(cache);
     if (cache.ok) {
-        console.log(`✓ balance probe OK (hard_limit_usd=${cache.hardLimitUsd}, used_cent=${cache.totalUsageCent})`);
+        console.log(`✓ balance probe OK (user_quota_usd=${cache.userQuotaUsd})`);
     } else {
         console.error(`✗ balance probe failed: ${cache.error}`);
         process.exitCode = 2;

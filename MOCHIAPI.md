@@ -20,10 +20,11 @@ Everything else (widgets, TUI, layout, powerline, themes) is untouched and track
 
 | Path | Returns | Notes |
 |---|---|---|
-| `GET ${baseUrl}/v1/dashboard/billing/subscription` | `{ hard_limit_usd, soft_limit_usd, access_until }` | unlimited tokens return `1e8` |
-| `GET ${baseUrl}/v1/dashboard/billing/usage?start_date&end_date` | `{ total_usage }` (cent = USD × 100) | 30-day window by default |
+| `GET ${baseUrl}/api/user/dashboard/balance` | `{ data: { user_quota_usd } }` | account-level remaining balance in USD; unlimited accounts return a sentinel ≥ `1e7` |
 
 Bearer auth (`Authorization: Bearer sk-...`). No cookies, no session.
+
+> Older builds (≤ `406b1d3`) also called `/v1/dashboard/billing/subscription` and `/v1/dashboard/billing/usage` to derive `balance = hard_limit_usd − used_usd`. Those token-level fields aren't the user's real balance, so we switched to the account endpoint above. Cache files from older builds keep loading — `viewFromCache` falls back to the legacy fields if `user_quota_usd` is missing.
 
 ## Install (one-shot)
 

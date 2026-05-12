@@ -67033,12 +67033,6 @@ function writeCache2(cache3) {
   mkdirSync5(dirname2(MOCHI_CACHE_PATH), { recursive: true });
   writeFileSync5(MOCHI_CACHE_PATH, JSON.stringify(cache3));
 }
-function ymd(d) {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
 async function httpGet(url2, token, timeoutMs = 12000) {
   const ctrl = new AbortController;
   const t = setTimeout(() => {
@@ -67058,28 +67052,18 @@ async function httpGet(url2, token, timeoutMs = 12000) {
 }
 async function fetchBalance(cfg) {
   const now2 = Date.now();
-  const today = new Date;
-  const thirtyAgo = new Date(today.getTime() - 30 * 86400000);
   try {
-    const [sub, use] = await Promise.all([
-      httpGet(`${cfg.baseUrl}/v1/dashboard/billing/subscription`, cfg.token),
-      httpGet(`${cfg.baseUrl}/v1/dashboard/billing/usage?start_date=${ymd(thirtyAgo)}&end_date=${ymd(today)}`, cfg.token)
-    ]);
-    const s = sub;
-    const u = use;
-    return {
-      fetchedAt: now2,
-      ok: true,
-      hardLimitUsd: s.hard_limit_usd ?? null,
-      softLimitUsd: s.soft_limit_usd ?? null,
-      totalUsageCent: u.total_usage ?? null,
-      accessUntil: s.access_until ?? null
-    };
+    const resp = await httpGet(`${cfg.baseUrl}/api/user/dashboard/balance`, cfg.token);
+    const r = resp;
+    const raw = r.data?.user_quota_usd;
+    const userQuotaUsd = typeof raw === "number" && Number.isFinite(raw) ? raw : typeof raw === "string" && Number.isFinite(Number(raw)) ? Number(raw) : null;
+    return { fetchedAt: now2, ok: true, userQuotaUsd };
   } catch (e) {
     const prev = readCache2();
     return {
       fetchedAt: now2,
       ok: false,
+      userQuotaUsd: prev?.userQuotaUsd ?? null,
       hardLimitUsd: prev?.hardLimitUsd ?? null,
       softLimitUsd: prev?.softLimitUsd ?? null,
       totalUsageCent: prev?.totalUsageCent ?? null,
@@ -67108,12 +67092,26 @@ function maybeRefreshInBackground(cfg, cache3) {
 function viewFromCache(cache3, cfg) {
   if (!cache3)
     return null;
-  const hard = cache3.hardLimitUsd;
-  const usedCent = cache3.totalUsageCent;
-  const unlimited = hard !== null && hard >= UNLIMITED_THRESHOLD;
-  const usedUsd = usedCent === null ? null : usedCent / 100;
-  const totalUsd = unlimited ? null : hard;
-  const balanceUsd = unlimited ? null : hard !== null && usedUsd !== null ? hard - usedUsd : null;
+  let balanceUsd = null;
+  let unlimited = false;
+  const q = cache3.userQuotaUsd;
+  if (typeof q === "number") {
+    if (q >= UNLIMITED_THRESHOLD) {
+      unlimited = true;
+    } else {
+      balanceUsd = q;
+    }
+  } else if (typeof cache3.hardLimitUsd === "number") {
+    const hard = cache3.hardLimitUsd;
+    const usedUsd2 = typeof cache3.totalUsageCent === "number" ? cache3.totalUsageCent / 100 : null;
+    if (hard >= UNLIMITED_THRESHOLD) {
+      unlimited = true;
+    } else if (usedUsd2 !== null) {
+      balanceUsd = hard - usedUsd2;
+    }
+  }
+  const usedUsd = typeof cache3.totalUsageCent === "number" ? cache3.totalUsageCent / 100 : null;
+  const totalUsd = typeof cache3.hardLimitUsd === "number" && cache3.hardLimitUsd < UNLIMITED_THRESHOLD ? cache3.hardLimitUsd : null;
   const stale = cfg !== null && Date.now() - cache3.fetchedAt > cfg.refreshIntervalSec * 2000;
   return {
     balanceUsd,
@@ -68486,7 +68484,7 @@ async function runMochiApiSetup() {
   const cache3 = await fetchBalance(cfg);
   writeCache2(cache3);
   if (cache3.ok) {
-    console.log(`✓ balance probe OK (hard_limit_usd=${cache3.hardLimitUsd}, used_cent=${cache3.totalUsageCent})`);
+    console.log(`✓ balance probe OK (user_quota_usd=${cache3.userQuotaUsd})`);
   } else {
     console.error(`✗ balance probe failed: ${cache3.error}`);
     process.exitCode = 2;
