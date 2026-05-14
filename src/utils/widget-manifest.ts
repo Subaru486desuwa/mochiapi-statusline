@@ -94,7 +94,8 @@ export const WIDGET_MANIFEST: WidgetManifestEntry[] = [
     { type: 'worktree-original-branch', create: () => new widgets.GitWorktreeOriginalBranchWidget() },
     { type: 'compaction-counter', create: () => new widgets.CompactionCounterWidget() },
     { type: 'mochiapi-balance', create: () => new widgets.MochiApiBalanceWidget() },
-    { type: 'mochiapi-daily-spend', create: () => new widgets.MochiApiDailySpendWidget() }
+    { type: 'mochiapi-daily-spend', create: () => new widgets.MochiApiDailySpendWidget() },
+    { type: 'mochiapi-subscription', create: () => new widgets.MochiApiSubscriptionWidget() }
 ];
 
 export const LAYOUT_WIDGET_MANIFEST: LayoutWidgetManifestEntry[] = [

@@ -28,13 +28,13 @@ Response fields we read (snake-case from the API, mapped into the cache):
 
 | API field | Cache field | Used by |
 |---|---|---|
-| `data.user_quota_usd` | `accountQuotaUsd` | balance widget (account balance) |
-| `data.user_used_quota_usd` | `accountUsedUsd` | setup diagnostics / cache context |
+| `data.user_quota_usd` | `accountQuotaUsd` | balance widget (quota / top-up total) |
+| `data.user_used_quota_usd` | `accountUsedUsd` | balance widget (remaining = quota − used) |
 | `data.today_used_quota_usd` | `todayUsedUsd` | daily-spend widget |
-| `data.token_remain_quota_usd` | `tokenRemainUsd` | balance fallback when account balance is missing |
-| `data.token_unlimited` | `tokenUnlimited` | unlimited balance detection |
+| `data.token_remain_quota_usd` | `tokenRemainUsd` | subscription widget |
+| `data.token_unlimited` | `tokenUnlimited` | subscription widget |
 
-The balance widget reads `user_quota_usd` directly as the account balance; it does not subtract `user_used_quota_usd` again. It renders `∞` when `token_unlimited` is true or the balance sentinel is ≥ `1e7`.
+The balance widget renders the account remaining balance (`user_quota_usd − user_used_quota_usd`). Token subscription state is rendered separately by `mochiapi-subscription`, so an unlimited token no longer turns the account balance into `∞`.
 
 ## Install (one-shot)
 
@@ -118,8 +118,9 @@ The fork ships two MochiAPI widgets, both fed from the same cached response:
 
 | Widget type | Renders | Default color |
 |---|---|---|
-| `mochiapi-balance` | account balance — `$X.XX` or `∞` for unlimited accounts | cyan |
+| `mochiapi-balance` | account remaining balance — `$X.XX` or `∞` for unlimited accounts | cyan |
 | `mochiapi-daily-spend` | today's spend — `$X.XX` | magenta |
+| `mochiapi-subscription` | `余额 $X.XX · 今日 $Y.YY · 订阅 $Z.ZZ/∞` | cyan |
 
 Neither widget has display modes — each emits a single number. A trailing `*` means the cached value is older than `2 × refreshIntervalSec` (usually a transient network/upstream issue); the widget keeps rendering the last good value while the background refresher retries.
 
@@ -128,8 +129,8 @@ Neither widget has display modes — each emits a single number. A trailing `*` 
 The Mochi three-line layout that `--mochiapi-setup` writes to `~/.config/ccstatusline/settings.json`:
 
 - **Line 1**: `模型 / Sonnet 4.6 (1M context) / 上下文 / <tokens> / <branch> / <changes>` — branch+changes auto-hide outside a git repo (`hideNoGit` flag); the model name keeps its `(1M context)` suffix (`keepContext` flag, fork-only).
-- **Line 2**: `时段用量 / 5.0% / 时段 / 3h41m / 重置 / 1h18m / 周用量 / 12.0% / TPS / <t/s>`
-- **Line 3**: `用户余额 / $9.999 / 今日消耗 / $0.025` — `mochiapi-balance` widget (cyan, account balance; `∞` for unlimited accounts) plus `mochiapi-daily-spend` widget (orange, today's spend so far).
+- **Line 2**: `会话花费 / $0.03 / TPS / <t/s>` — no Claude account usage widgets, so it will not show `[No credentials]`.
+- **Line 3**: `订阅信息 / 余额 $1.540 · 今日 $0.277 · 订阅 ∞` — account balance, today's spend, and token subscription state in one MochiAPI billing row.
 
 To customize, launch the TUI: `mochiapi-statusline`. To inspect or hand-edit the JSON, look at `~/.config/ccstatusline/settings.json` (macOS / Linux) or `%USERPROFILE%\.config\ccstatusline\settings.json` (Windows). That file is the upstream ccstatusline TUI's settings — distinct from `~/.config/mochiapi-statusline/config.json` which holds your token.
 

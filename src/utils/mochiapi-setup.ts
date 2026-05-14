@@ -22,8 +22,7 @@ function readEnv(name: string): string | undefined {
 }
 
 const STATUSLINE_COMMAND = 'mochiapi-statusline';
-const MOCHI_BALANCE_TYPE = 'mochiapi-balance';
-const MOCHI_DAILY_TYPE = 'mochiapi-daily-spend';
+const MOCHI_SUBSCRIPTION_TYPE = 'mochiapi-subscription';
 
 const LABEL_FG = 'hex:111827';
 const MODEL_BG = 'hex:7AA2F7';
@@ -31,11 +30,8 @@ const CONTEXT_BG = 'hex:414868';
 const GIT_BG = 'hex:BB9AF7';
 const CHANGES_BG = 'hex:F7768E';
 const USAGE_BG = 'hex:9ECE6A';
-const TIMER_BG = 'hex:565F89';
-const WEEKLY_BG = 'hex:E0AF68';
 const SPEED_BG = 'hex:7DCFFF';
 const BALANCE_BG = 'hex:2AC3DE';
-const SPEND_BG = 'hex:FF9E64';
 const DARK_FG = 'hex:C0CAF5';
 
 interface SetupOptions {
@@ -65,22 +61,14 @@ function buildRecommendedSettings(): unknown {
                 { id: 'L1-changes', type: 'git-changes', color: LABEL_FG, backgroundColor: CHANGES_BG, bold: true, rawValue: true, metadata: { hideNoGit: 'true' } }
             ],
             [
-                { id: 'L2-lbl-used', type: 'custom-text', color: LABEL_FG, backgroundColor: USAGE_BG, bold: true, customText: '时段用量', merge: 'no-padding' },
-                { id: 'L2-used', type: 'session-usage', color: LABEL_FG, backgroundColor: USAGE_BG, bold: true, rawValue: true },
-                { id: 'L2-lbl-block', type: 'custom-text', color: DARK_FG, backgroundColor: TIMER_BG, bold: true, customText: '时段', merge: 'no-padding' },
-                { id: 'L2-block', type: 'block-timer', color: DARK_FG, backgroundColor: TIMER_BG, bold: true, rawValue: true, metadata: { compact: 'true' } },
-                { id: 'L2-lbl-reset', type: 'custom-text', color: LABEL_FG, backgroundColor: USAGE_BG, bold: true, customText: '重置', merge: 'no-padding' },
-                { id: 'L2-reset', type: 'reset-timer', color: LABEL_FG, backgroundColor: USAGE_BG, bold: true, rawValue: true, metadata: { compact: 'true' } },
-                { id: 'L2-lbl-weekly', type: 'custom-text', color: LABEL_FG, backgroundColor: WEEKLY_BG, bold: true, customText: '周用量', merge: 'no-padding' },
-                { id: 'L2-weekly', type: 'weekly-usage', color: LABEL_FG, backgroundColor: WEEKLY_BG, bold: true, rawValue: true },
+                { id: 'L2-lbl-cost', type: 'custom-text', color: LABEL_FG, backgroundColor: USAGE_BG, bold: true, customText: '会话花费', merge: 'no-padding' },
+                { id: 'L2-cost', type: 'session-cost', color: LABEL_FG, backgroundColor: USAGE_BG, bold: true, rawValue: true },
                 { id: 'L2-lbl-sum', type: 'custom-text', color: LABEL_FG, backgroundColor: SPEED_BG, bold: true, customText: 'TPS', merge: 'no-padding' },
                 { id: 'L2-sum', type: 'total-speed', color: LABEL_FG, backgroundColor: SPEED_BG, bold: true, rawValue: true }
             ],
             [
-                { id: 'L3-lbl-mochi', type: 'custom-text', color: LABEL_FG, backgroundColor: BALANCE_BG, bold: true, customText: '用户余额', merge: 'no-padding' },
-                { id: 'L3-mochi', type: MOCHI_BALANCE_TYPE, color: LABEL_FG, backgroundColor: BALANCE_BG, bold: true, rawValue: true },
-                { id: 'L3-lbl-today', type: 'custom-text', color: LABEL_FG, backgroundColor: SPEND_BG, bold: true, customText: '今日消耗', merge: 'no-padding' },
-                { id: 'L3-today', type: MOCHI_DAILY_TYPE, color: LABEL_FG, backgroundColor: SPEND_BG, bold: true, rawValue: true }
+                { id: 'L3-lbl-mochi', type: 'custom-text', color: LABEL_FG, backgroundColor: BALANCE_BG, bold: true, customText: '订阅信息', merge: 'no-padding' },
+                { id: 'L3-mochi', type: MOCHI_SUBSCRIPTION_TYPE, color: LABEL_FG, backgroundColor: BALANCE_BG, bold: true, rawValue: true }
             ]
         ],
         flexMode: 'full',
@@ -106,14 +94,14 @@ function buildRecommendedSettings(): unknown {
 interface MochiLineItem { id?: unknown; type?: unknown }
 interface MochiSettings { lines?: unknown }
 
-function hasMochiBalanceWidget(settings: MochiSettings): boolean {
+function hasMochiSubscriptionWidget(settings: MochiSettings): boolean {
     if (!Array.isArray(settings.lines))
         return false;
     for (const line of settings.lines) {
         if (!Array.isArray(line))
             continue;
         for (const item of line as MochiLineItem[]) {
-            if (item.type === MOCHI_BALANCE_TYPE) {
+            if (item.type === MOCHI_SUBSCRIPTION_TYPE) {
                 return true;
             }
         }
@@ -156,17 +144,15 @@ async function writeStatuslineSettings(opts: SetupOptions): Promise<{ result: St
         return { result: 'created', backupPath };
     }
 
-    if (hasMochiBalanceWidget(existing)) {
+    if (hasMochiSubscriptionWidget(existing)) {
         return { result: 'has-widget' };
     }
 
     if (!Array.isArray(existing.lines))
         existing.lines = [];
     (existing.lines).push([
-        { id: 'L3-lbl-mochi', type: 'custom-text', color: LABEL_FG, backgroundColor: BALANCE_BG, bold: true, customText: '用户余额', merge: 'no-padding' },
-        { id: 'L3-mochi', type: MOCHI_BALANCE_TYPE, color: LABEL_FG, backgroundColor: BALANCE_BG, bold: true, rawValue: true },
-        { id: 'L3-lbl-today', type: 'custom-text', color: LABEL_FG, backgroundColor: SPEND_BG, bold: true, customText: '今日消耗', merge: 'no-padding' },
-        { id: 'L3-today', type: MOCHI_DAILY_TYPE, color: LABEL_FG, backgroundColor: SPEND_BG, bold: true, rawValue: true }
+        { id: 'L3-lbl-mochi', type: 'custom-text', color: LABEL_FG, backgroundColor: BALANCE_BG, bold: true, customText: '订阅信息', merge: 'no-padding' },
+        { id: 'L3-mochi', type: MOCHI_SUBSCRIPTION_TYPE, color: LABEL_FG, backgroundColor: BALANCE_BG, bold: true, rawValue: true }
     ]);
     await fs.promises.writeFile(settingsPath, JSON.stringify(existing, null, 2), 'utf-8');
     return { result: 'appended' };

@@ -28,14 +28,16 @@ function cache(overrides: Partial<MochiApiCache>): MochiApiCache {
 }
 
 describe('mochiapi cache view', () => {
-    it('uses user_quota_usd as the account balance without subtracting used again', () => {
+    it('derives account balance from quota minus used', () => {
         const view = viewFromCache(cache({
             accountQuotaUsd: 9.999936,
             accountUsedUsd: 8.460298,
             todayUsedUsd: 0.02469
         }), cfg);
 
-        expect(view?.balanceUsd).toBeCloseTo(9.999936);
+        expect(view?.balanceUsd).toBeCloseTo(1.539638);
+        expect(view?.accountQuotaUsd).toBeCloseTo(9.999936);
+        expect(view?.accountUsedUsd).toBeCloseTo(8.460298);
         expect(view?.todayUsedUsd).toBeCloseTo(0.02469);
         expect(view?.unlimited).toBe(false);
     });
@@ -47,8 +49,12 @@ describe('mochiapi cache view', () => {
         expect(view?.unlimited).toBe(false);
     });
 
-    it('treats explicit token unlimited and sentinel balances as unlimited', () => {
-        expect(viewFromCache(cache({ tokenUnlimited: true, tokenRemainUsd: 1.54 }), cfg)?.unlimited).toBe(true);
+    it('keeps token unlimited separate from account-balance unlimited', () => {
+        const tokenUnlimited = viewFromCache(cache({ accountQuotaUsd: 9.999936, accountUsedUsd: 8.460298, tokenUnlimited: true }), cfg);
+
+        expect(tokenUnlimited?.balanceUsd).toBeCloseTo(1.539638);
+        expect(tokenUnlimited?.tokenUnlimited).toBe(true);
+        expect(tokenUnlimited?.unlimited).toBe(false);
         expect(viewFromCache(cache({ accountQuotaUsd: 10000000 }), cfg)?.unlimited).toBe(true);
     });
 

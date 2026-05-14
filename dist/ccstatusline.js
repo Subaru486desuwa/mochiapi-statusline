@@ -67111,16 +67111,23 @@ function maybeRefreshInBackground(cfg, cache3) {
 function viewFromCache(cache3, cfg) {
   if (!cache3)
     return null;
-  const accountBalance = cache3.accountQuotaUsd;
+  const quota = cache3.accountQuotaUsd;
+  const used = cache3.accountUsedUsd;
   const tokenRemain = cache3.tokenRemainUsd;
-  const unlimited = cache3.tokenUnlimited === true || typeof accountBalance === "number" && accountBalance >= UNLIMITED_THRESHOLD;
+  const unlimited = typeof quota === "number" && quota >= UNLIMITED_THRESHOLD;
   let balanceUsd = null;
-  if (!unlimited) {
-    balanceUsd = typeof accountBalance === "number" ? accountBalance : tokenRemain;
+  if (!unlimited && typeof quota === "number" && typeof used === "number") {
+    balanceUsd = Math.max(0, quota - used);
+  } else if (!unlimited) {
+    balanceUsd = typeof quota === "number" ? quota : tokenRemain;
   }
   const stale = cfg !== null && Date.now() - cache3.fetchedAt > cfg.refreshIntervalSec * 2000;
   return {
     balanceUsd,
+    accountQuotaUsd: cache3.accountQuotaUsd,
+    accountUsedUsd: cache3.accountUsedUsd,
+    tokenRemainUsd: cache3.tokenRemainUsd,
+    tokenUnlimited: cache3.tokenUnlimited,
     todayUsedUsd: cache3.todayUsedUsd,
     unlimited,
     stale,
@@ -67253,6 +67260,64 @@ var init_MochiApiDailySpend = __esm(() => {
   init_mochiapi();
 });
 
+// src/widgets/MochiApiSubscription.ts
+function fmtUsd3(v) {
+  if (v >= 1000)
+    return `$${v.toFixed(0)}`;
+  if (v >= 10)
+    return `$${v.toFixed(2)}`;
+  return `$${v.toFixed(3)}`;
+}
+
+class MochiApiSubscriptionWidget {
+  getDefaultColor() {
+    return "cyan";
+  }
+  getDescription() {
+    return "MochiAPI billing summary: balance, today spend, and token subscription status";
+  }
+  getDisplayName() {
+    return "MochiAPI Subscription";
+  }
+  getCategory() {
+    return "MochiAPI";
+  }
+  getEditorDisplay(_item) {
+    return { displayText: this.getDisplayName() };
+  }
+  render(item, context, _settings) {
+    const labeled = !item.rawValue;
+    if (context.isPreview) {
+      const preview = "余额 $1.54 · 今日 $0.277 · 订阅 ∞";
+      return labeled ? `Mochi: ${preview}` : preview;
+    }
+    const cfg = loadMochiConfig();
+    if (!cfg) {
+      return labeled ? "Mochi: cfg?" : "cfg?";
+    }
+    const cache3 = readCache2();
+    maybeRefreshInBackground(cfg, cache3);
+    const view = viewFromCache(cache3, cfg);
+    if (!view)
+      return labeled ? "Mochi: ..." : "...";
+    const balance = view.unlimited ? "∞" : view.balanceUsd === null ? "?" : fmtUsd3(view.balanceUsd);
+    const today = view.todayUsedUsd === null ? "?" : fmtUsd3(view.todayUsedUsd);
+    const subscription = view.tokenUnlimited === true ? "∞" : view.tokenRemainUsd === null ? "?" : fmtUsd3(view.tokenRemainUsd);
+    const body = `余额 ${balance} · 今日 ${today} · 订阅 ${subscription}`;
+    const decorated = view.stale ? `${body}*` : body;
+    return labeled ? `Mochi: ${decorated}` : decorated;
+  }
+  supportsRawValue() {
+    return true;
+  }
+  supportsColors(_item) {
+    return true;
+  }
+}
+var init_MochiApiSubscription = __esm(() => {
+  init_mochiapi();
+});
+
 // src/widgets/index.ts
 var init_widgets = __esm(async () => {
   init_Model();
@@ -67298,6 +67363,7 @@ var init_widgets = __esm(async () => {
   init_CompactionCounter();
   init_MochiApiBalance();
   init_MochiApiDailySpend();
+  init_MochiApiSubscription();
   await __promiseAll([
     init_TokensInput(),
     init_TokensOutput(),
@@ -67410,7 +67476,8 @@ var init_widget_manifest = __esm(async () => {
     { type: "worktree-original-branch", create: () => new GitWorktreeOriginalBranchWidget },
     { type: "compaction-counter", create: () => new CompactionCounterWidget },
     { type: "mochiapi-balance", create: () => new MochiApiBalanceWidget },
-    { type: "mochiapi-daily-spend", create: () => new MochiApiDailySpendWidget }
+    { type: "mochiapi-daily-spend", create: () => new MochiApiDailySpendWidget },
+    { type: "mochiapi-subscription", create: () => new MochiApiSubscriptionWidget }
   ];
   LAYOUT_WIDGET_MANIFEST = [
     {
@@ -68380,22 +68447,14 @@ function buildRecommendedSettings() {
         { id: "L1-changes", type: "git-changes", color: LABEL_FG, backgroundColor: CHANGES_BG, bold: true, rawValue: true, metadata: { hideNoGit: "true" } }
       ],
       [
-        { id: "L2-lbl-used", type: "custom-text", color: LABEL_FG, backgroundColor: USAGE_BG, bold: true, customText: "时段用量", merge: "no-padding" },
-        { id: "L2-used", type: "session-usage", color: LABEL_FG, backgroundColor: USAGE_BG, bold: true, rawValue: true },
-        { id: "L2-lbl-block", type: "custom-text", color: DARK_FG, backgroundColor: TIMER_BG, bold: true, customText: "时段", merge: "no-padding" },
-        { id: "L2-block", type: "block-timer", color: DARK_FG, backgroundColor: TIMER_BG, bold: true, rawValue: true, metadata: { compact: "true" } },
-        { id: "L2-lbl-reset", type: "custom-text", color: LABEL_FG, backgroundColor: USAGE_BG, bold: true, customText: "重置", merge: "no-padding" },
-        { id: "L2-reset", type: "reset-timer", color: LABEL_FG, backgroundColor: USAGE_BG, bold: true, rawValue: true, metadata: { compact: "true" } },
-        { id: "L2-lbl-weekly", type: "custom-text", color: LABEL_FG, backgroundColor: WEEKLY_BG, bold: true, customText: "周用量", merge: "no-padding" },
-        { id: "L2-weekly", type: "weekly-usage", color: LABEL_FG, backgroundColor: WEEKLY_BG, bold: true, rawValue: true },
+        { id: "L2-lbl-cost", type: "custom-text", color: LABEL_FG, backgroundColor: USAGE_BG, bold: true, customText: "会话花费", merge: "no-padding" },
+        { id: "L2-cost", type: "session-cost", color: LABEL_FG, backgroundColor: USAGE_BG, bold: true, rawValue: true },
         { id: "L2-lbl-sum", type: "custom-text", color: LABEL_FG, backgroundColor: SPEED_BG, bold: true, customText: "TPS", merge: "no-padding" },
         { id: "L2-sum", type: "total-speed", color: LABEL_FG, backgroundColor: SPEED_BG, bold: true, rawValue: true }
       ],
       [
-        { id: "L3-lbl-mochi", type: "custom-text", color: LABEL_FG, backgroundColor: BALANCE_BG, bold: true, customText: "用户余额", merge: "no-padding" },
-        { id: "L3-mochi", type: MOCHI_BALANCE_TYPE, color: LABEL_FG, backgroundColor: BALANCE_BG, bold: true, rawValue: true },
-        { id: "L3-lbl-today", type: "custom-text", color: LABEL_FG, backgroundColor: SPEND_BG, bold: true, customText: "今日消耗", merge: "no-padding" },
-        { id: "L3-today", type: MOCHI_DAILY_TYPE, color: LABEL_FG, backgroundColor: SPEND_BG, bold: true, rawValue: true }
+        { id: "L3-lbl-mochi", type: "custom-text", color: LABEL_FG, backgroundColor: BALANCE_BG, bold: true, customText: "订阅信息", merge: "no-padding" },
+        { id: "L3-mochi", type: MOCHI_SUBSCRIPTION_TYPE, color: LABEL_FG, backgroundColor: BALANCE_BG, bold: true, rawValue: true }
       ]
     ],
     flexMode: "full",
@@ -68417,14 +68476,14 @@ function buildRecommendedSettings() {
     }
   };
 }
-function hasMochiBalanceWidget(settings) {
+function hasMochiSubscriptionWidget(settings) {
   if (!Array.isArray(settings.lines))
     return false;
   for (const line of settings.lines) {
     if (!Array.isArray(line))
       continue;
     for (const item of line) {
-      if (item.type === MOCHI_BALANCE_TYPE) {
+      if (item.type === MOCHI_SUBSCRIPTION_TYPE) {
         return true;
       }
     }
@@ -68458,16 +68517,14 @@ async function writeStatuslineSettings(opts) {
     await fs16.promises.writeFile(settingsPath2, JSON.stringify(recommended, null, 2), "utf-8");
     return { result: "created", backupPath };
   }
-  if (hasMochiBalanceWidget(existing)) {
+  if (hasMochiSubscriptionWidget(existing)) {
     return { result: "has-widget" };
   }
   if (!Array.isArray(existing.lines))
     existing.lines = [];
   existing.lines.push([
-    { id: "L3-lbl-mochi", type: "custom-text", color: LABEL_FG, backgroundColor: BALANCE_BG, bold: true, customText: "用户余额", merge: "no-padding" },
-    { id: "L3-mochi", type: MOCHI_BALANCE_TYPE, color: LABEL_FG, backgroundColor: BALANCE_BG, bold: true, rawValue: true },
-    { id: "L3-lbl-today", type: "custom-text", color: LABEL_FG, backgroundColor: SPEND_BG, bold: true, customText: "今日消耗", merge: "no-padding" },
-    { id: "L3-today", type: MOCHI_DAILY_TYPE, color: LABEL_FG, backgroundColor: SPEND_BG, bold: true, rawValue: true }
+    { id: "L3-lbl-mochi", type: "custom-text", color: LABEL_FG, backgroundColor: BALANCE_BG, bold: true, customText: "订阅信息", merge: "no-padding" },
+    { id: "L3-mochi", type: MOCHI_SUBSCRIPTION_TYPE, color: LABEL_FG, backgroundColor: BALANCE_BG, bold: true, rawValue: true }
   ]);
   await fs16.promises.writeFile(settingsPath2, JSON.stringify(existing, null, 2), "utf-8");
   return { result: "appended" };
@@ -68570,7 +68627,7 @@ async function runMochiApiSetup() {
   console.log("");
   console.log("Setup complete. Open a new Claude Code session to see the status line.");
 }
-var STATUSLINE_COMMAND = "mochiapi-statusline", MOCHI_BALANCE_TYPE = "mochiapi-balance", MOCHI_DAILY_TYPE = "mochiapi-daily-spend", LABEL_FG = "hex:111827", MODEL_BG = "hex:7AA2F7", CONTEXT_BG = "hex:414868", GIT_BG = "hex:BB9AF7", CHANGES_BG = "hex:F7768E", USAGE_BG = "hex:9ECE6A", TIMER_BG = "hex:565F89", WEEKLY_BG = "hex:E0AF68", SPEED_BG = "hex:7DCFFF", BALANCE_BG = "hex:2AC3DE", SPEND_BG = "hex:FF9E64", DARK_FG = "hex:C0CAF5";
+var STATUSLINE_COMMAND = "mochiapi-statusline", MOCHI_SUBSCRIPTION_TYPE = "mochiapi-subscription", LABEL_FG = "hex:111827", MODEL_BG = "hex:7AA2F7", CONTEXT_BG = "hex:414868", GIT_BG = "hex:BB9AF7", CHANGES_BG = "hex:F7768E", USAGE_BG = "hex:9ECE6A", SPEED_BG = "hex:7DCFFF", BALANCE_BG = "hex:2AC3DE", DARK_FG = "hex:C0CAF5";
 var init_mochiapi_setup = __esm(async () => {
   init_mochiapi();
   await __promiseAll([

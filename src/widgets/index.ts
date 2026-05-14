@@ -76,3 +76,4 @@ export { CompactionCounterWidget } from './CompactionCounter';
 export { VoiceStatusWidget } from './VoiceStatus';
 export { MochiApiBalanceWidget } from './MochiApiBalance';
 export { MochiApiDailySpendWidget } from './MochiApiDailySpend';
+export { MochiApiSubscriptionWidget } from './MochiApiSubscription';

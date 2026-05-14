@@ -8,14 +8,14 @@ import {
 
 import { DEFAULT_SETTINGS } from '../../types/Settings';
 import * as mochiapi from '../../utils/mochiapi';
-import { MochiApiBalanceWidget } from '../MochiApiBalance';
+import { MochiApiSubscriptionWidget } from '../MochiApiSubscription';
 
-describe('MochiApiBalanceWidget', () => {
+describe('MochiApiSubscriptionWidget', () => {
     afterEach(() => {
         vi.restoreAllMocks();
     });
 
-    it('renders the remaining account balance from the cache', () => {
+    it('renders balance, today spend, and unlimited subscription separately', () => {
         vi.spyOn(mochiapi, 'loadMochiConfig').mockReturnValue({
             baseUrl: 'https://mochiapi.com',
             token: 'sk-test',
@@ -26,28 +26,18 @@ describe('MochiApiBalanceWidget', () => {
             ok: true,
             accountQuotaUsd: 9.999936,
             accountUsedUsd: 8.460298,
-            todayUsedUsd: 0.02469,
+            todayUsedUsd: 0.2766,
             tokenRemainUsd: 1.539638,
             tokenUnlimited: true
         });
         vi.spyOn(mochiapi, 'maybeRefreshInBackground').mockImplementation(() => undefined);
 
-        const rendered = new MochiApiBalanceWidget().render(
-            { id: 'mochi', type: 'mochiapi-balance', rawValue: true },
+        const rendered = new MochiApiSubscriptionWidget().render(
+            { id: 'sub', type: 'mochiapi-subscription', rawValue: true },
             {},
             DEFAULT_SETTINGS
         );
 
-        expect(rendered).toBe('$1.540');
-    });
-
-    it('keeps the labeled preview compact', () => {
-        const rendered = new MochiApiBalanceWidget().render(
-            { id: 'mochi', type: 'mochiapi-balance' },
-            { isPreview: true },
-            DEFAULT_SETTINGS
-        );
-
-        expect(rendered).toBe('Mochi: $8.42');
+        expect(rendered).toBe('余额 $1.540 · 今日 $0.277 · 订阅 ∞');
     });
 });

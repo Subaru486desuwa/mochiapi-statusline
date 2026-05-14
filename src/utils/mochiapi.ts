@@ -23,7 +23,7 @@ export interface MochiApiConfig {
 export interface MochiApiCache {
     fetchedAt: number;
     ok: boolean;
-    /** Account balance (USD) — data.user_quota_usd. */
+    /** Account quota/top-up total (USD) — data.user_quota_usd. */
     accountQuotaUsd: number | null;
     /** Account used (USD) — data.user_used_quota_usd. */
     accountUsedUsd: number | null;
@@ -185,11 +185,19 @@ export function maybeRefreshInBackground(cfg: MochiApiConfig, cache: MochiApiCac
 }
 
 export interface MochiBalanceView {
-    /** Account balance (USD), taken directly from accountQuotaUsd when present. */
+    /** Account remaining balance (USD). */
     balanceUsd: number | null;
+    /** Account quota/top-up total (USD). */
+    accountQuotaUsd: number | null;
+    /** Account used (USD). */
+    accountUsedUsd: number | null;
+    /** Current token remaining quota (USD). */
+    tokenRemainUsd: number | null;
+    /** Current token unlimited flag. */
+    tokenUnlimited: boolean | null;
     /** Today's spend (USD). */
     todayUsedUsd: number | null;
-    /** Account is unlimited when the account balance is sentinel-large (≥ 1e7). */
+    /** Account balance is unlimited when the account quota/top-up total is sentinel-large (≥ 1e7). */
     unlimited: boolean;
     stale: boolean;
     error?: string;
@@ -199,15 +207,17 @@ export function viewFromCache(cache: MochiApiCache | null, cfg: MochiApiConfig |
     if (!cache)
         return null;
 
-    const accountBalance = cache.accountQuotaUsd;
+    const quota = cache.accountQuotaUsd;
+    const used = cache.accountUsedUsd;
     const tokenRemain = cache.tokenRemainUsd;
-    const unlimited = cache.tokenUnlimited === true
-        || (typeof accountBalance === 'number' && accountBalance >= UNLIMITED_THRESHOLD);
+    const unlimited = typeof quota === 'number' && quota >= UNLIMITED_THRESHOLD;
 
     let balanceUsd: number | null = null;
-    if (!unlimited) {
-        balanceUsd = typeof accountBalance === 'number'
-            ? accountBalance
+    if (!unlimited && typeof quota === 'number' && typeof used === 'number') {
+        balanceUsd = Math.max(0, quota - used);
+    } else if (!unlimited) {
+        balanceUsd = typeof quota === 'number'
+            ? quota
             : tokenRemain;
     }
 
@@ -215,6 +225,10 @@ export function viewFromCache(cache: MochiApiCache | null, cfg: MochiApiConfig |
 
     return {
         balanceUsd,
+        accountQuotaUsd: cache.accountQuotaUsd,
+        accountUsedUsd: cache.accountUsedUsd,
+        tokenRemainUsd: cache.tokenRemainUsd,
+        tokenUnlimited: cache.tokenUnlimited,
         todayUsedUsd: cache.todayUsedUsd,
         unlimited,
         stale,
