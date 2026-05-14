@@ -1362,9 +1362,8 @@ See https://react.dev/link/invalid-hook-call for tips about how to debug and fix
 
 // node_modules/react/index.js
 var require_react = __commonJS((exports, module) => {
-  var react_development = __toESM(require_react_development());
   if (false) {} else {
-    module.exports = react_development;
+    module.exports = require_react_development();
   }
 });
 
@@ -3849,9 +3848,8 @@ var require_scheduler_development = __commonJS((exports) => {
 
 // node_modules/react-reconciler/node_modules/scheduler/index.js
 var require_scheduler = __commonJS((exports, module) => {
-  var scheduler_development = __toESM(require_scheduler_development());
   if (false) {} else {
-    module.exports = scheduler_development;
+    module.exports = require_scheduler_development();
   }
 });
 
@@ -37058,9 +37056,8 @@ React keys must be passed directly to JSX without using spread:
 
 // node_modules/react/jsx-runtime.js
 var require_jsx_runtime = __commonJS((exports, module) => {
-  var react_jsx_runtime_development = __toESM(require_react_jsx_runtime_development());
   if (false) {} else {
-    module.exports = react_jsx_runtime_development;
+    module.exports = require_react_jsx_runtime_development();
   }
 });
 
@@ -56047,7 +56044,7 @@ function getTerminalWidth() {
 function canDetectTerminalWidth() {
   return probeTerminalWidth() !== null;
 }
-var __dirname = "/Users/shilinghan/Developer/mochiapi-statusline/src/utils", PACKAGE_VERSION = "0.1.0";
+var __dirname = "C:\\Users\\slh\\mochiapi-statusline\\src\\utils", PACKAGE_VERSION = "0.1.0";
 var init_terminal = () => {};
 
 // src/utils/renderer.ts
@@ -57823,9 +57820,8 @@ React keys must be passed directly to JSX without using spread:
 
 // node_modules/react/jsx-dev-runtime.js
 var require_jsx_dev_runtime = __commonJS((exports, module) => {
-  var react_jsx_dev_runtime_development = __toESM(require_react_jsx_dev_runtime_development());
   if (false) {} else {
-    module.exports = react_jsx_dev_runtime_development;
+    module.exports = require_react_jsx_dev_runtime_development();
   }
 });
 
@@ -67045,9 +67041,32 @@ async function httpGet(url2, token, timeoutMs = 12000) {
     });
     if (!res.ok)
       throw new Error(`HTTP ${res.status}`);
-    return await res.json();
+    const body = await res.json();
+    assertBusinessSuccess(body);
+    return body;
   } finally {
     clearTimeout(t);
+  }
+}
+function isRecord2(value) {
+  return !!value && typeof value === "object" && !Array.isArray(value);
+}
+function businessFailureMessage(value) {
+  if (value.success === false || value.ok === false || value.code === false) {
+    return typeof value.message === "string" ? value.message : typeof value.error === "string" ? value.error : "API response marked unsuccessful";
+  }
+  return null;
+}
+function assertBusinessSuccess(resp) {
+  if (!isRecord2(resp))
+    return;
+  const rootFailure = businessFailureMessage(resp);
+  if (rootFailure)
+    throw new Error(rootFailure);
+  if (isRecord2(resp.data)) {
+    const dataFailure = businessFailureMessage(resp.data);
+    if (dataFailure)
+      throw new Error(dataFailure);
   }
 }
 function toNum(v) {
@@ -67060,6 +67079,12 @@ function toNum(v) {
 function toBool(v) {
   if (typeof v === "boolean")
     return v;
+  if (typeof v === "string") {
+    if (v.toLowerCase() === "true")
+      return true;
+    if (v.toLowerCase() === "false")
+      return false;
+  }
   return null;
 }
 function firstNum(...values2) {
@@ -67071,13 +67096,79 @@ function firstNum(...values2) {
   return null;
 }
 function dataObject(resp) {
-  if (!resp || typeof resp !== "object")
+  if (!isRecord2(resp))
     return {};
-  const root = resp;
-  const data = root.data;
-  if (data && typeof data === "object")
+  const data = resp.data;
+  if (isRecord2(data))
     return data;
-  return root;
+  return resp;
+}
+function localDateKey(now2 = Date.now()) {
+  const d = new Date(now2);
+  const y = d.getFullYear();
+  const m = `${d.getMonth() + 1}`.padStart(2, "0");
+  const day = `${d.getDate()}`.padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+function estimateTodayUsedUsd(totalUsedUsd, prev, todayKey) {
+  if (totalUsedUsd === null || !prev)
+    return null;
+  const prevTotal = typeof prev.tokenTotalUsedUsd === "number" ? prev.tokenTotalUsedUsd : null;
+  if (prevTotal === null)
+    return null;
+  const prevDate = prev.tokenTotalUsedLocalDate ?? localDateKey(prev.fetchedAt);
+  if (prevDate !== todayKey)
+    return null;
+  return Math.max(0, totalUsedUsd - prevTotal);
+}
+function emptyCache(now2, ok) {
+  return {
+    fetchedAt: now2,
+    ok,
+    directBalanceUsd: null,
+    accountQuotaUsd: null,
+    accountUsedUsd: null,
+    todayUsedUsd: null,
+    tokenRemainUsd: null,
+    tokenUnlimited: null,
+    tokenTotalUsedUsd: null,
+    tokenTotalUsedLocalDate: null
+  };
+}
+function cacheFromTokenUsage(resp, now2, prev) {
+  const d = dataObject(resp);
+  const totalUsedUsd = firstNum(d.total_usd_used, d.token_total_usd_used, d.total_used_usd);
+  const todayKey = localDateKey(now2);
+  const todayUsedUsd = firstNum(d.today_used_quota_usd, d.today_usd_used, d.today_used_usd) ?? estimateTodayUsedUsd(totalUsedUsd, prev, todayKey);
+  return {
+    fetchedAt: now2,
+    ok: true,
+    directBalanceUsd: firstNum(d.user_usd_available, d.user_available_usd, d.user_balance_usd, d.user_remain_quota_usd, d.user_remaining_quota_usd, d.remain_balance, d.remaining_balance, d.balance_usd, d.balance),
+    accountQuotaUsd: firstNum(d.user_quota_usd, d.user_total_quota_usd),
+    accountUsedUsd: firstNum(d.user_used_quota_usd, d.user_usd_used),
+    todayUsedUsd,
+    tokenRemainUsd: firstNum(d.total_usd_available, d.token_remain_quota_usd, d.token_remaining_quota_usd, d.token_available_usd),
+    tokenUnlimited: toBool(d.unlimited_quota) ?? toBool(d.token_unlimited),
+    tokenTotalUsedUsd: totalUsedUsd,
+    tokenTotalUsedLocalDate: totalUsedUsd === null ? null : todayKey
+  };
+}
+async function cacheFromDashboard(cfg, resp, now2) {
+  const d = dataObject(resp);
+  const directBalanceUsd = firstNum(d.user_balance_usd, d.user_remain_quota_usd, d.user_remaining_quota_usd, d.user_usd_available, d.remain_balance, d.remaining_balance, d.balance_usd, d.balance) ?? await fetchDirectBalance(cfg);
+  const totalUsedUsd = firstNum(d.total_usd_used, d.token_total_usd_used, d.total_used_usd);
+  return {
+    fetchedAt: now2,
+    ok: true,
+    directBalanceUsd,
+    accountQuotaUsd: toNum(d.user_quota_usd),
+    accountUsedUsd: toNum(d.user_used_quota_usd),
+    todayUsedUsd: toNum(d.today_used_quota_usd),
+    tokenRemainUsd: toNum(d.token_remain_quota_usd),
+    tokenUnlimited: toBool(d.token_unlimited),
+    tokenTotalUsedUsd: totalUsedUsd,
+    tokenTotalUsedLocalDate: totalUsedUsd === null ? null : localDateKey(now2)
+  };
 }
 async function fetchDirectBalance(cfg) {
   const candidates = [
@@ -67095,36 +67186,42 @@ async function fetchDirectBalance(cfg) {
   }
   return null;
 }
-async function fetchBalance(cfg) {
+async function fetchBalance(cfg, previousCache) {
   const now2 = Date.now();
+  const prev = previousCache === undefined ? readCache2() : previousCache;
+  const errors3 = [];
+  try {
+    const resp = await httpGet(`${cfg.baseUrl}/api/usage/token/`, cfg.token);
+    return cacheFromTokenUsage(resp, now2, prev);
+  } catch (e) {
+    errors3.push(`/api/usage/token/: ${e instanceof Error ? e.message : String(e)}`);
+  }
   try {
     const resp = await httpGet(`${cfg.baseUrl}/api/user/dashboard/balance`, cfg.token);
-    const d = dataObject(resp);
-    const directBalanceUsd = firstNum(d.user_balance_usd, d.user_remain_quota_usd, d.user_remaining_quota_usd, d.user_usd_available, d.remain_balance, d.remaining_balance, d.balance_usd, d.balance) ?? await fetchDirectBalance(cfg);
-    return {
-      fetchedAt: now2,
-      ok: true,
-      directBalanceUsd,
-      accountQuotaUsd: toNum(d.user_quota_usd),
-      accountUsedUsd: toNum(d.user_used_quota_usd),
-      todayUsedUsd: toNum(d.today_used_quota_usd),
-      tokenRemainUsd: toNum(d.token_remain_quota_usd),
-      tokenUnlimited: toBool(d.token_unlimited)
-    };
+    return await cacheFromDashboard(cfg, resp, now2);
   } catch (e) {
-    const prev = readCache2();
+    errors3.push(`/api/user/dashboard/balance: ${e instanceof Error ? e.message : String(e)}`);
+  }
+  const directBalanceUsd = await fetchDirectBalance(cfg);
+  if (directBalanceUsd !== null) {
     return {
-      fetchedAt: now2,
-      ok: false,
-      directBalanceUsd: prev?.directBalanceUsd ?? null,
-      accountQuotaUsd: prev?.accountQuotaUsd ?? null,
-      accountUsedUsd: prev?.accountUsedUsd ?? null,
-      todayUsedUsd: prev?.todayUsedUsd ?? null,
-      tokenRemainUsd: prev?.tokenRemainUsd ?? null,
-      tokenUnlimited: prev?.tokenUnlimited ?? null,
-      error: e instanceof Error ? e.message : String(e)
+      ...emptyCache(now2, true),
+      directBalanceUsd
     };
   }
+  return {
+    fetchedAt: now2,
+    ok: false,
+    directBalanceUsd: prev?.directBalanceUsd ?? null,
+    accountQuotaUsd: prev?.accountQuotaUsd ?? null,
+    accountUsedUsd: prev?.accountUsedUsd ?? null,
+    todayUsedUsd: prev?.todayUsedUsd ?? null,
+    tokenRemainUsd: prev?.tokenRemainUsd ?? null,
+    tokenUnlimited: prev?.tokenUnlimited ?? null,
+    tokenTotalUsedUsd: prev?.tokenTotalUsedUsd ?? null,
+    tokenTotalUsedLocalDate: prev?.tokenTotalUsedLocalDate ?? null,
+    error: errors3.join("; ") || "MochiAPI balance fetch failed"
+  };
 }
 function maybeRefreshInBackground(cfg, cache3) {
   const stale = !cache3 || Date.now() - cache3.fetchedAt > cfg.refreshIntervalSec * 1000;
@@ -67151,7 +67248,7 @@ function viewFromCache(cache3, cfg) {
   const tokenRemain = cache3.tokenRemainUsd;
   const unlimited = typeof quota === "number" && quota >= UNLIMITED_THRESHOLD;
   let balanceUsd = null;
-  if (!unlimited && typeof cache3.directBalanceUsd === "number") {
+  if (typeof cache3.directBalanceUsd === "number") {
     balanceUsd = cache3.directBalanceUsd;
   } else if (!unlimited && typeof quota === "number" && typeof used === "number") {
     balanceUsd = Math.max(0, quota - used);
@@ -67200,7 +67297,7 @@ class MochiApiBalanceWidget {
     return "cyan";
   }
   getDescription() {
-    return "MochiAPI account balance from /api/user/dashboard/balance";
+    return "MochiAPI account balance from /api/usage/token/";
   }
   getDisplayName() {
     return "MochiAPI Balance";
@@ -67225,12 +67322,7 @@ class MochiApiBalanceWidget {
     const view = viewFromCache(cache3, cfg);
     if (!view)
       return labeled ? "Mochi: ..." : "...";
-    let body;
-    if (view.unlimited) {
-      body = "∞";
-    } else {
-      body = view.balanceUsd === null ? "?" : fmtUsd(view.balanceUsd);
-    }
+    const body = view.balanceUsd === null ? "?" : fmtUsd(view.balanceUsd);
     const decorated = view.stale ? `${body}*` : body;
     return labeled ? `Mochi: ${decorated}` : decorated;
   }
@@ -67259,7 +67351,7 @@ class MochiApiDailySpendWidget {
     return "magenta";
   }
   getDescription() {
-    return "MochiAPI today's spend (USD) from /api/user/dashboard/balance";
+    return "MochiAPI today's spend (USD) from /api/usage/token/";
   }
   getDisplayName() {
     return "MochiAPI Daily Spend";
@@ -67339,7 +67431,7 @@ class MochiApiSubscriptionWidget {
     const view = viewFromCache(cache3, cfg);
     if (!view)
       return labeled ? "Mochi: ..." : "...";
-    const balance = view.unlimited ? "∞" : view.balanceUsd === null ? "?" : fmtUsd3(view.balanceUsd);
+    const balance = view.balanceUsd === null ? "?" : fmtUsd3(view.balanceUsd);
     const today = view.todayUsedUsd === null ? "?" : fmtUsd3(view.todayUsedUsd);
     const subscription = view.tokenUnlimited === true ? "∞" : view.tokenRemainUsd === null ? "?" : fmtUsd3(view.tokenRemainUsd);
     const body = `余额 ${balance} · 今日 ${today} · 订阅 ${subscription}`;
@@ -68457,7 +68549,8 @@ var require_pluralize = __commonJS((exports, module) => {
 // src/utils/mochiapi-setup.ts
 var exports_mochiapi_setup = {};
 __export(exports_mochiapi_setup, {
-  runMochiApiSetup: () => runMochiApiSetup
+  runMochiApiSetup: () => runMochiApiSetup,
+  __mochiApiSetupTest: () => __mochiApiSetupTest
 });
 import * as fs16 from "fs";
 import * as path13 from "path";
@@ -68522,7 +68615,9 @@ function makeMochiBillingItems(prefix) {
     { id: `${prefix}-lbl-balance`, type: "custom-text", color: LABEL_FG, backgroundColor: BALANCE_BG, bold: true, customText: "用户余额", merge: "no-padding" },
     { id: `${prefix}-balance`, type: MOCHI_BALANCE_TYPE, color: LABEL_FG, backgroundColor: BALANCE_BG, bold: true, rawValue: true },
     { id: `${prefix}-lbl-today`, type: "custom-text", color: LABEL_FG, backgroundColor: SPEND_BG, bold: true, customText: "今日消耗", merge: "no-padding" },
-    { id: `${prefix}-today`, type: MOCHI_DAILY_TYPE, color: LABEL_FG, backgroundColor: SPEND_BG, bold: true, rawValue: true }
+    { id: `${prefix}-today`, type: MOCHI_DAILY_TYPE, color: LABEL_FG, backgroundColor: SPEND_BG, bold: true, rawValue: true },
+    { id: `${prefix}-lbl-tps`, type: "custom-text", color: LABEL_FG, backgroundColor: SPEED_BG, bold: true, customText: "TPS", merge: "no-padding" },
+    { id: `${prefix}-tps`, type: "total-speed", color: LABEL_FG, backgroundColor: SPEED_BG, bold: true, rawValue: true }
   ];
 }
 function hasMochiSubscriptionWidget(settings) {
@@ -68704,13 +68799,14 @@ async function runMochiApiSetup() {
   console.log("");
   console.log("Setup complete. Open a new Claude Code session to see the status line.");
 }
-var STATUSLINE_COMMAND = "mochiapi-statusline", MOCHI_BALANCE_TYPE = "mochiapi-balance", MOCHI_DAILY_TYPE = "mochiapi-daily-spend", MOCHI_SUBSCRIPTION_TYPE = "mochiapi-subscription", LABEL_FG = "hex:111827", MODEL_BG = "hex:7AA2F7", CONTEXT_BG = "hex:414868", GIT_BG = "hex:BB9AF7", CHANGES_BG = "hex:F7768E", SPEED_BG = "hex:7DCFFF", BALANCE_BG = "hex:2AC3DE", SPEND_BG = "hex:FF9E64", DARK_FG = "hex:C0CAF5";
+var STATUSLINE_COMMAND = "mochiapi-statusline", MOCHI_BALANCE_TYPE = "mochiapi-balance", MOCHI_DAILY_TYPE = "mochiapi-daily-spend", MOCHI_SUBSCRIPTION_TYPE = "mochiapi-subscription", LABEL_FG = "hex:111827", MODEL_BG = "hex:7AA2F7", CONTEXT_BG = "hex:414868", GIT_BG = "hex:BB9AF7", CHANGES_BG = "hex:F7768E", SPEED_BG = "hex:7DCFFF", BALANCE_BG = "hex:2AC3DE", SPEND_BG = "hex:FF9E64", DARK_FG = "hex:C0CAF5", __mochiApiSetupTest;
 var init_mochiapi_setup = __esm(async () => {
   init_mochiapi();
   await __promiseAll([
     init_claude_settings(),
     init_config()
   ]);
+  __mochiApiSetupTest = { migrateMochiBillingIntoExistingLines };
 });
 
 // src/ccstatusline.ts

@@ -69,6 +69,33 @@ describe('MochiApiBalanceWidget', () => {
         expect(rendered).toBe('$9.254');
     });
 
+    it('does not render token_unlimited as the user balance', () => {
+        vi.spyOn(mochiapi, 'loadMochiConfig').mockReturnValue({
+            baseUrl: 'https://mochiapi.com',
+            token: 'sk-test',
+            refreshIntervalSec: 30
+        });
+        vi.spyOn(mochiapi, 'readCache').mockReturnValue({
+            fetchedAt: Date.now(),
+            ok: true,
+            directBalanceUsd: 9.254,
+            accountQuotaUsd: 10000000,
+            accountUsedUsd: null,
+            todayUsedUsd: 0.277,
+            tokenRemainUsd: 100,
+            tokenUnlimited: true
+        });
+        vi.spyOn(mochiapi, 'maybeRefreshInBackground').mockImplementation(() => undefined);
+
+        const rendered = new MochiApiBalanceWidget().render(
+            { id: 'mochi', type: 'mochiapi-balance', rawValue: true },
+            {},
+            DEFAULT_SETTINGS
+        );
+
+        expect(rendered).toBe('$9.254');
+    });
+
     it('keeps the labeled preview compact', () => {
         const rendered = new MochiApiBalanceWidget().render(
             { id: 'mochi', type: 'mochiapi-balance' },

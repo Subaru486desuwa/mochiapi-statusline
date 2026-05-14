@@ -35,6 +35,10 @@ export interface MochiApiCache {
     tokenRemainUsd: number | null;
     /** Current token unlimited flag — data.token_unlimited. */
     tokenUnlimited: boolean | null;
+    /** Current token cumulative spend (USD), when returned by /api/usage/token/. */
+    tokenTotalUsedUsd?: number | null;
+    /** Local date associated with tokenTotalUsedUsd, used as the daily-spend baseline. */
+    tokenTotalUsedLocalDate?: string | null;
     error?: string;
 }
 
@@ -110,9 +114,39 @@ async function httpGet(url: string, token: string, timeoutMs = 12000): Promise<u
         });
         if (!res.ok)
             throw new Error(`HTTP ${res.status}`);
-        return await res.json();
+        const body = await res.json();
+        assertBusinessSuccess(body);
+        return body;
     } finally {
         clearTimeout(t);
+    }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function businessFailureMessage(value: Record<string, unknown>): string | null {
+    if (value.success === false || value.ok === false || value.code === false) {
+        return typeof value.message === 'string'
+            ? value.message
+            : (typeof value.error === 'string' ? value.error : 'API response marked unsuccessful');
+    }
+    return null;
+}
+
+function assertBusinessSuccess(resp: unknown): void {
+    if (!isRecord(resp))
+        return;
+
+    const rootFailure = businessFailureMessage(resp);
+    if (rootFailure)
+        throw new Error(rootFailure);
+
+    if (isRecord(resp.data)) {
+        const dataFailure = businessFailureMessage(resp.data);
+        if (dataFailure)
+            throw new Error(dataFailure);
     }
 }
 
@@ -127,6 +161,12 @@ function toNum(v: unknown): number | null {
 function toBool(v: unknown): boolean | null {
     if (typeof v === 'boolean')
         return v;
+    if (typeof v === 'string') {
+        if (v.toLowerCase() === 'true')
+            return true;
+        if (v.toLowerCase() === 'false')
+            return false;
+    }
     return null;
 }
 
@@ -140,13 +180,133 @@ function firstNum(...values: unknown[]): number | null {
 }
 
 function dataObject(resp: unknown): Record<string, unknown> {
-    if (!resp || typeof resp !== 'object')
+    if (!isRecord(resp))
         return {};
-    const root = resp as Record<string, unknown>;
-    const data = root.data;
-    if (data && typeof data === 'object')
-        return data as Record<string, unknown>;
-    return root;
+    const data = resp.data;
+    if (isRecord(data))
+        return data;
+    return resp;
+}
+
+function localDateKey(now = Date.now()): string {
+    const d = new Date(now);
+    const y = d.getFullYear();
+    const m = `${d.getMonth() + 1}`.padStart(2, '0');
+    const day = `${d.getDate()}`.padStart(2, '0');
+    return `${y}-${m}-${day}`;
+}
+
+function estimateTodayUsedUsd(totalUsedUsd: number | null, prev: MochiApiCache | null, todayKey: string): number | null {
+    if (totalUsedUsd === null || !prev)
+        return null;
+
+    const prevTotal = typeof prev.tokenTotalUsedUsd === 'number'
+        ? prev.tokenTotalUsedUsd
+        : null;
+    if (prevTotal === null)
+        return null;
+
+    const prevDate = prev.tokenTotalUsedLocalDate ?? localDateKey(prev.fetchedAt);
+    if (prevDate !== todayKey)
+        return null;
+
+    return Math.max(0, totalUsedUsd - prevTotal);
+}
+
+function emptyCache(now: number, ok: boolean): MochiApiCache {
+    return {
+        fetchedAt: now,
+        ok,
+        directBalanceUsd: null,
+        accountQuotaUsd: null,
+        accountUsedUsd: null,
+        todayUsedUsd: null,
+        tokenRemainUsd: null,
+        tokenUnlimited: null,
+        tokenTotalUsedUsd: null,
+        tokenTotalUsedLocalDate: null
+    };
+}
+
+function cacheFromTokenUsage(resp: unknown, now: number, prev: MochiApiCache | null): MochiApiCache {
+    const d = dataObject(resp);
+    const totalUsedUsd = firstNum(
+        d.total_usd_used,
+        d.token_total_usd_used,
+        d.total_used_usd
+    );
+    const todayKey = localDateKey(now);
+    const todayUsedUsd = firstNum(
+        d.today_used_quota_usd,
+        d.today_usd_used,
+        d.today_used_usd
+    ) ?? estimateTodayUsedUsd(totalUsedUsd, prev, todayKey);
+
+    return {
+        fetchedAt: now,
+        ok: true,
+        directBalanceUsd: firstNum(
+            d.user_usd_available,
+            d.user_available_usd,
+            d.user_balance_usd,
+            d.user_remain_quota_usd,
+            d.user_remaining_quota_usd,
+            d.remain_balance,
+            d.remaining_balance,
+            d.balance_usd,
+            d.balance
+        ),
+        accountQuotaUsd: firstNum(
+            d.user_quota_usd,
+            d.user_total_quota_usd
+        ),
+        accountUsedUsd: firstNum(
+            d.user_used_quota_usd,
+            d.user_usd_used
+        ),
+        todayUsedUsd,
+        tokenRemainUsd: firstNum(
+            d.total_usd_available,
+            d.token_remain_quota_usd,
+            d.token_remaining_quota_usd,
+            d.token_available_usd
+        ),
+        tokenUnlimited: toBool(d.unlimited_quota) ?? toBool(d.token_unlimited),
+        tokenTotalUsedUsd: totalUsedUsd,
+        tokenTotalUsedLocalDate: totalUsedUsd === null ? null : todayKey
+    };
+}
+
+async function cacheFromDashboard(cfg: MochiApiConfig, resp: unknown, now: number): Promise<MochiApiCache> {
+    const d = dataObject(resp);
+    const directBalanceUsd = firstNum(
+        d.user_balance_usd,
+        d.user_remain_quota_usd,
+        d.user_remaining_quota_usd,
+        d.user_usd_available,
+        d.remain_balance,
+        d.remaining_balance,
+        d.balance_usd,
+        d.balance
+    ) ?? await fetchDirectBalance(cfg);
+    const totalUsedUsd = firstNum(
+        d.total_usd_used,
+        d.token_total_usd_used,
+        d.total_used_usd
+    );
+
+    return {
+        fetchedAt: now,
+        ok: true,
+        directBalanceUsd,
+        accountQuotaUsd: toNum(d.user_quota_usd),
+        accountUsedUsd: toNum(d.user_used_quota_usd),
+        todayUsedUsd: toNum(d.today_used_quota_usd),
+        tokenRemainUsd: toNum(d.token_remain_quota_usd),
+        tokenUnlimited: toBool(d.token_unlimited),
+        tokenTotalUsedUsd: totalUsedUsd,
+        tokenTotalUsedLocalDate: totalUsedUsd === null ? null : localDateKey(now)
+    };
 }
 
 async function fetchDirectBalance(cfg: MochiApiConfig): Promise<number | null> {
@@ -179,45 +339,46 @@ async function fetchDirectBalance(cfg: MochiApiConfig): Promise<number | null> {
     return null;
 }
 
-export async function fetchBalance(cfg: MochiApiConfig): Promise<MochiApiCache> {
+export async function fetchBalance(cfg: MochiApiConfig, previousCache?: MochiApiCache | null): Promise<MochiApiCache> {
     const now = Date.now();
+    const prev = previousCache === undefined ? readCache() : previousCache;
+    const errors: string[] = [];
+
+    try {
+        const resp = await httpGet(`${cfg.baseUrl}/api/usage/token/`, cfg.token);
+        return cacheFromTokenUsage(resp, now, prev);
+    } catch (e) {
+        errors.push(`/api/usage/token/: ${e instanceof Error ? e.message : String(e)}`);
+    }
+
     try {
         const resp = await httpGet(`${cfg.baseUrl}/api/user/dashboard/balance`, cfg.token);
-        const d = dataObject(resp);
-        const directBalanceUsd = firstNum(
-            d.user_balance_usd,
-            d.user_remain_quota_usd,
-            d.user_remaining_quota_usd,
-            d.user_usd_available,
-            d.remain_balance,
-            d.remaining_balance,
-            d.balance_usd,
-            d.balance
-        ) ?? await fetchDirectBalance(cfg);
-        return {
-            fetchedAt: now,
-            ok: true,
-            directBalanceUsd,
-            accountQuotaUsd: toNum(d.user_quota_usd),
-            accountUsedUsd: toNum(d.user_used_quota_usd),
-            todayUsedUsd: toNum(d.today_used_quota_usd),
-            tokenRemainUsd: toNum(d.token_remain_quota_usd),
-            tokenUnlimited: toBool(d.token_unlimited)
-        };
+        return await cacheFromDashboard(cfg, resp, now);
     } catch (e) {
-        const prev = readCache();
+        errors.push(`/api/user/dashboard/balance: ${e instanceof Error ? e.message : String(e)}`);
+    }
+
+    const directBalanceUsd = await fetchDirectBalance(cfg);
+    if (directBalanceUsd !== null) {
         return {
-            fetchedAt: now,
-            ok: false,
-            directBalanceUsd: prev?.directBalanceUsd ?? null,
-            accountQuotaUsd: prev?.accountQuotaUsd ?? null,
-            accountUsedUsd: prev?.accountUsedUsd ?? null,
-            todayUsedUsd: prev?.todayUsedUsd ?? null,
-            tokenRemainUsd: prev?.tokenRemainUsd ?? null,
-            tokenUnlimited: prev?.tokenUnlimited ?? null,
-            error: e instanceof Error ? e.message : String(e)
+            ...emptyCache(now, true),
+            directBalanceUsd
         };
     }
+
+    return {
+        fetchedAt: now,
+        ok: false,
+        directBalanceUsd: prev?.directBalanceUsd ?? null,
+        accountQuotaUsd: prev?.accountQuotaUsd ?? null,
+        accountUsedUsd: prev?.accountUsedUsd ?? null,
+        todayUsedUsd: prev?.todayUsedUsd ?? null,
+        tokenRemainUsd: prev?.tokenRemainUsd ?? null,
+        tokenUnlimited: prev?.tokenUnlimited ?? null,
+        tokenTotalUsedUsd: prev?.tokenTotalUsedUsd ?? null,
+        tokenTotalUsedLocalDate: prev?.tokenTotalUsedLocalDate ?? null,
+        error: errors.join('; ') || 'MochiAPI balance fetch failed'
+    };
 }
 
 export function maybeRefreshInBackground(cfg: MochiApiConfig, cache: MochiApiCache | null): void {
@@ -271,7 +432,7 @@ export function viewFromCache(cache: MochiApiCache | null, cfg: MochiApiConfig |
     const unlimited = typeof quota === 'number' && quota >= UNLIMITED_THRESHOLD;
 
     let balanceUsd: number | null = null;
-    if (!unlimited && typeof cache.directBalanceUsd === 'number') {
+    if (typeof cache.directBalanceUsd === 'number') {
         balanceUsd = cache.directBalanceUsd;
     } else if (!unlimited && typeof quota === 'number' && typeof used === 'number') {
         balanceUsd = Math.max(0, quota - used);

@@ -103,7 +103,9 @@ function makeMochiBillingItems(prefix: string): MochiLineItem[] {
         { id: `${prefix}-lbl-balance`, type: 'custom-text', color: LABEL_FG, backgroundColor: BALANCE_BG, bold: true, customText: '用户余额', merge: 'no-padding' },
         { id: `${prefix}-balance`, type: MOCHI_BALANCE_TYPE, color: LABEL_FG, backgroundColor: BALANCE_BG, bold: true, rawValue: true },
         { id: `${prefix}-lbl-today`, type: 'custom-text', color: LABEL_FG, backgroundColor: SPEND_BG, bold: true, customText: '今日消耗', merge: 'no-padding' },
-        { id: `${prefix}-today`, type: MOCHI_DAILY_TYPE, color: LABEL_FG, backgroundColor: SPEND_BG, bold: true, rawValue: true }
+        { id: `${prefix}-today`, type: MOCHI_DAILY_TYPE, color: LABEL_FG, backgroundColor: SPEND_BG, bold: true, rawValue: true },
+        { id: `${prefix}-lbl-tps`, type: 'custom-text', color: LABEL_FG, backgroundColor: SPEED_BG, bold: true, customText: 'TPS', merge: 'no-padding' },
+        { id: `${prefix}-tps`, type: 'total-speed', color: LABEL_FG, backgroundColor: SPEED_BG, bold: true, rawValue: true }
     ];
 }
 
@@ -159,6 +161,8 @@ function migrateMochiBillingIntoExistingLines(existing: MochiSettings & { lines?
     return false;
 }
 
+export const __mochiApiSetupTest = { migrateMochiBillingIntoExistingLines };
+
 type StatuslineWriteResult = 'created' | 'replaced' | 'appended' | 'has-widget';
 
 async function writeStatuslineSettings(opts: SetupOptions): Promise<{ result: StatuslineWriteResult; backupPath?: string }> {
@@ -173,7 +177,7 @@ async function writeStatuslineSettings(opts: SetupOptions): Promise<{ result: St
     }
 
     // Default behavior: replace with recommended layout (with backup).
-    // --keep-statusline-layout: only append the Mochi widget row if missing.
+    // --keep-statusline-layout: replace old usage widgets in-place when present; otherwise append Mochi summary.
     if (!opts.keepStatuslineLayout) {
         const backupPath = `${settingsPath}.bak-${Date.now()}`;
         await fs.promises.copyFile(settingsPath, backupPath);

@@ -22,7 +22,7 @@ function fmtUsd(v: number): string {
 
 export class MochiApiDailySpendWidget implements Widget {
     getDefaultColor(): string { return 'magenta'; }
-    getDescription(): string { return 'MochiAPI today\'s spend (USD) from /api/user/dashboard/balance'; }
+    getDescription(): string { return 'MochiAPI today\'s spend (USD) from /api/usage/token/'; }
     getDisplayName(): string { return 'MochiAPI Daily Spend'; }
     getCategory(): string { return 'MochiAPI'; }
 

@@ -41,4 +41,31 @@ describe('MochiApiSubscriptionWidget', () => {
 
         expect(rendered).toBe('余额 $1.540 · 今日 $0.277 · 订阅 ∞');
     });
+
+    it('does not let token_unlimited replace the user balance', () => {
+        vi.spyOn(mochiapi, 'loadMochiConfig').mockReturnValue({
+            baseUrl: 'https://mochiapi.com',
+            token: 'sk-test',
+            refreshIntervalSec: 30
+        });
+        vi.spyOn(mochiapi, 'readCache').mockReturnValue({
+            fetchedAt: Date.now(),
+            ok: true,
+            directBalanceUsd: 9.254,
+            accountQuotaUsd: 10000000,
+            accountUsedUsd: null,
+            todayUsedUsd: 0.2766,
+            tokenRemainUsd: 1.539638,
+            tokenUnlimited: true
+        });
+        vi.spyOn(mochiapi, 'maybeRefreshInBackground').mockImplementation(() => undefined);
+
+        const rendered = new MochiApiSubscriptionWidget().render(
+            { id: 'sub', type: 'mochiapi-subscription', rawValue: true },
+            {},
+            DEFAULT_SETTINGS
+        );
+
+        expect(rendered).toBe('余额 $9.254 · 今日 $0.277 · 订阅 ∞');
+    });
 });

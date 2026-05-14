@@ -22,7 +22,7 @@ function fmtUsd(v: number): string {
 
 export class MochiApiBalanceWidget implements Widget {
     getDefaultColor(): string { return 'cyan'; }
-    getDescription(): string { return 'MochiAPI account balance from /api/user/dashboard/balance'; }
+    getDescription(): string { return 'MochiAPI account balance from /api/usage/token/'; }
     getDisplayName(): string { return 'MochiAPI Balance'; }
     getCategory(): string { return 'MochiAPI'; }
 
@@ -47,12 +47,7 @@ export class MochiApiBalanceWidget implements Widget {
         if (!view)
             return labeled ? 'Mochi: ...' : '...';
 
-        let body: string;
-        if (view.unlimited) {
-            body = '∞';
-        } else {
-            body = view.balanceUsd === null ? '?' : fmtUsd(view.balanceUsd);
-        }
+        const body = view.balanceUsd === null ? '?' : fmtUsd(view.balanceUsd);
 
         const decorated = view.stale ? `${body}*` : body;
         return labeled ? `Mochi: ${decorated}` : decorated;
