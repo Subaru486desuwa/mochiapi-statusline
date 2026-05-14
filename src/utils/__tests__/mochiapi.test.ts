@@ -18,6 +18,7 @@ function cache(overrides: Partial<MochiApiCache>): MochiApiCache {
     return {
         fetchedAt: Date.now(),
         ok: true,
+        directBalanceUsd: null,
         accountQuotaUsd: null,
         accountUsedUsd: null,
         todayUsedUsd: null,
@@ -28,7 +29,20 @@ function cache(overrides: Partial<MochiApiCache>): MochiApiCache {
 }
 
 describe('mochiapi cache view', () => {
-    it('derives account balance from quota minus used', () => {
+    it('uses direct balance when the API returns one', () => {
+        const view = viewFromCache(cache({
+            directBalanceUsd: 9.254,
+            accountQuotaUsd: 19.5,
+            accountUsedUsd: 10.25,
+            todayUsedUsd: 0.277
+        }), cfg);
+
+        expect(view?.balanceUsd).toBe(9.254);
+        expect(view?.directBalance).toBe(true);
+        expect(view?.todayUsedUsd).toBe(0.277);
+    });
+
+    it('derives account balance from quota minus used only as a fallback', () => {
         const view = viewFromCache(cache({
             accountQuotaUsd: 9.999936,
             accountUsedUsd: 8.460298,
@@ -39,6 +53,7 @@ describe('mochiapi cache view', () => {
         expect(view?.accountQuotaUsd).toBeCloseTo(9.999936);
         expect(view?.accountUsedUsd).toBeCloseTo(8.460298);
         expect(view?.todayUsedUsd).toBeCloseTo(0.02469);
+        expect(view?.directBalance).toBe(false);
         expect(view?.unlimited).toBe(false);
     });
 

@@ -23,6 +23,8 @@ export interface MochiApiConfig {
 export interface MochiApiCache {
     fetchedAt: number;
     ok: boolean;
+    /** Direct account remaining balance (USD), when returned by the API. */
+    directBalanceUsd: number | null;
     /** Account quota/top-up total (USD) — data.user_quota_usd. */
     accountQuotaUsd: number | null;
     /** Account used (USD) — data.user_used_quota_usd. */
@@ -128,34 +130,86 @@ function toBool(v: unknown): boolean | null {
     return null;
 }
 
+function firstNum(...values: unknown[]): number | null {
+    for (const value of values) {
+        const parsed = toNum(value);
+        if (parsed !== null)
+            return parsed;
+    }
+    return null;
+}
+
+function dataObject(resp: unknown): Record<string, unknown> {
+    if (!resp || typeof resp !== 'object')
+        return {};
+    const root = resp as Record<string, unknown>;
+    const data = root.data;
+    if (data && typeof data === 'object')
+        return data as Record<string, unknown>;
+    return root;
+}
+
+async function fetchDirectBalance(cfg: MochiApiConfig): Promise<number | null> {
+    const candidates = [
+        '/v1/user/balance',
+        '/api/user/balance',
+        '/api/user/self'
+    ];
+
+    for (const path of candidates) {
+        try {
+            const d = dataObject(await httpGet(`${cfg.baseUrl}${path}`, cfg.token, 5000));
+            const balance = firstNum(
+                d.user_usd_available,
+                d.user_available_usd,
+                d.user_balance_usd,
+                d.user_remain_quota_usd,
+                d.user_remaining_quota_usd,
+                d.remain_balance,
+                d.remaining_balance,
+                d.balance_usd,
+                d.balance
+            );
+            if (balance !== null)
+                return balance;
+        } catch {
+            // Optional compatibility endpoints are best-effort only.
+        }
+    }
+    return null;
+}
+
 export async function fetchBalance(cfg: MochiApiConfig): Promise<MochiApiCache> {
     const now = Date.now();
     try {
         const resp = await httpGet(`${cfg.baseUrl}/api/user/dashboard/balance`, cfg.token);
-        const r = resp as {
-            data?: {
-                user_quota_usd?: unknown;
-                user_used_quota_usd?: unknown;
-                today_used_quota_usd?: unknown;
-                token_remain_quota_usd?: unknown;
-                token_unlimited?: unknown;
-            };
-        };
-        const d = r.data;
+        const d = dataObject(resp);
+        const directBalanceUsd = firstNum(
+            d.user_balance_usd,
+            d.user_remain_quota_usd,
+            d.user_remaining_quota_usd,
+            d.user_usd_available,
+            d.remain_balance,
+            d.remaining_balance,
+            d.balance_usd,
+            d.balance
+        ) ?? await fetchDirectBalance(cfg);
         return {
             fetchedAt: now,
             ok: true,
-            accountQuotaUsd: toNum(d?.user_quota_usd),
-            accountUsedUsd: toNum(d?.user_used_quota_usd),
-            todayUsedUsd: toNum(d?.today_used_quota_usd),
-            tokenRemainUsd: toNum(d?.token_remain_quota_usd),
-            tokenUnlimited: toBool(d?.token_unlimited)
+            directBalanceUsd,
+            accountQuotaUsd: toNum(d.user_quota_usd),
+            accountUsedUsd: toNum(d.user_used_quota_usd),
+            todayUsedUsd: toNum(d.today_used_quota_usd),
+            tokenRemainUsd: toNum(d.token_remain_quota_usd),
+            tokenUnlimited: toBool(d.token_unlimited)
         };
     } catch (e) {
         const prev = readCache();
         return {
             fetchedAt: now,
             ok: false,
+            directBalanceUsd: prev?.directBalanceUsd ?? null,
             accountQuotaUsd: prev?.accountQuotaUsd ?? null,
             accountUsedUsd: prev?.accountUsedUsd ?? null,
             todayUsedUsd: prev?.todayUsedUsd ?? null,
@@ -187,6 +241,10 @@ export function maybeRefreshInBackground(cfg: MochiApiConfig, cache: MochiApiCac
 export interface MochiBalanceView {
     /** Account remaining balance (USD). */
     balanceUsd: number | null;
+    /** Whether balanceUsd came from a direct balance field/endpoint. */
+    directBalance: boolean;
+    /** Direct account remaining balance (USD), when returned by the API. */
+    directBalanceUsd: number | null;
     /** Account quota/top-up total (USD). */
     accountQuotaUsd: number | null;
     /** Account used (USD). */
@@ -213,7 +271,9 @@ export function viewFromCache(cache: MochiApiCache | null, cfg: MochiApiConfig |
     const unlimited = typeof quota === 'number' && quota >= UNLIMITED_THRESHOLD;
 
     let balanceUsd: number | null = null;
-    if (!unlimited && typeof quota === 'number' && typeof used === 'number') {
+    if (!unlimited && typeof cache.directBalanceUsd === 'number') {
+        balanceUsd = cache.directBalanceUsd;
+    } else if (!unlimited && typeof quota === 'number' && typeof used === 'number') {
         balanceUsd = Math.max(0, quota - used);
     } else if (!unlimited) {
         balanceUsd = typeof quota === 'number'
@@ -225,6 +285,8 @@ export function viewFromCache(cache: MochiApiCache | null, cfg: MochiApiConfig |
 
     return {
         balanceUsd,
+        directBalance: typeof cache.directBalanceUsd === 'number',
+        directBalanceUsd: cache.directBalanceUsd,
         accountQuotaUsd: cache.accountQuotaUsd,
         accountUsedUsd: cache.accountUsedUsd,
         tokenRemainUsd: cache.tokenRemainUsd,

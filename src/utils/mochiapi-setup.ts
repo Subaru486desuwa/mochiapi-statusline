@@ -22,6 +22,8 @@ function readEnv(name: string): string | undefined {
 }
 
 const STATUSLINE_COMMAND = 'mochiapi-statusline';
+const MOCHI_BALANCE_TYPE = 'mochiapi-balance';
+const MOCHI_DAILY_TYPE = 'mochiapi-daily-spend';
 const MOCHI_SUBSCRIPTION_TYPE = 'mochiapi-subscription';
 
 const LABEL_FG = 'hex:111827';
@@ -29,9 +31,9 @@ const MODEL_BG = 'hex:7AA2F7';
 const CONTEXT_BG = 'hex:414868';
 const GIT_BG = 'hex:BB9AF7';
 const CHANGES_BG = 'hex:F7768E';
-const USAGE_BG = 'hex:9ECE6A';
 const SPEED_BG = 'hex:7DCFFF';
 const BALANCE_BG = 'hex:2AC3DE';
+const SPEND_BG = 'hex:FF9E64';
 const DARK_FG = 'hex:C0CAF5';
 
 interface SetupOptions {
@@ -61,8 +63,10 @@ function buildRecommendedSettings(): unknown {
                 { id: 'L1-changes', type: 'git-changes', color: LABEL_FG, backgroundColor: CHANGES_BG, bold: true, rawValue: true, metadata: { hideNoGit: 'true' } }
             ],
             [
-                { id: 'L2-lbl-cost', type: 'custom-text', color: LABEL_FG, backgroundColor: USAGE_BG, bold: true, customText: '会话花费', merge: 'no-padding' },
-                { id: 'L2-cost', type: 'session-cost', color: LABEL_FG, backgroundColor: USAGE_BG, bold: true, rawValue: true },
+                { id: 'L2-lbl-balance', type: 'custom-text', color: LABEL_FG, backgroundColor: BALANCE_BG, bold: true, customText: '用户余额', merge: 'no-padding' },
+                { id: 'L2-balance', type: MOCHI_BALANCE_TYPE, color: LABEL_FG, backgroundColor: BALANCE_BG, bold: true, rawValue: true },
+                { id: 'L2-lbl-today', type: 'custom-text', color: LABEL_FG, backgroundColor: SPEND_BG, bold: true, customText: '今日消耗', merge: 'no-padding' },
+                { id: 'L2-today', type: MOCHI_DAILY_TYPE, color: LABEL_FG, backgroundColor: SPEND_BG, bold: true, rawValue: true },
                 { id: 'L2-lbl-sum', type: 'custom-text', color: LABEL_FG, backgroundColor: SPEED_BG, bold: true, customText: 'TPS', merge: 'no-padding' },
                 { id: 'L2-sum', type: 'total-speed', color: LABEL_FG, backgroundColor: SPEED_BG, bold: true, rawValue: true }
             ],
@@ -91,8 +95,17 @@ function buildRecommendedSettings(): unknown {
     };
 }
 
-interface MochiLineItem { id?: unknown; type?: unknown }
+interface MochiLineItem { id?: unknown; type?: unknown; [key: string]: unknown }
 interface MochiSettings { lines?: unknown }
+
+function makeMochiBillingItems(prefix: string): MochiLineItem[] {
+    return [
+        { id: `${prefix}-lbl-balance`, type: 'custom-text', color: LABEL_FG, backgroundColor: BALANCE_BG, bold: true, customText: '用户余额', merge: 'no-padding' },
+        { id: `${prefix}-balance`, type: MOCHI_BALANCE_TYPE, color: LABEL_FG, backgroundColor: BALANCE_BG, bold: true, rawValue: true },
+        { id: `${prefix}-lbl-today`, type: 'custom-text', color: LABEL_FG, backgroundColor: SPEND_BG, bold: true, customText: '今日消耗', merge: 'no-padding' },
+        { id: `${prefix}-today`, type: MOCHI_DAILY_TYPE, color: LABEL_FG, backgroundColor: SPEND_BG, bold: true, rawValue: true }
+    ];
+}
 
 function hasMochiSubscriptionWidget(settings: MochiSettings): boolean {
     if (!Array.isArray(settings.lines))
@@ -106,6 +119,43 @@ function hasMochiSubscriptionWidget(settings: MochiSettings): boolean {
             }
         }
     }
+    return false;
+}
+
+function isOldClaudeUsageItem(item: MochiLineItem): boolean {
+    const type = item.type;
+    const id = typeof item.id === 'string' ? item.id : '';
+    return type === 'session-usage'
+        || type === 'block-timer'
+        || type === 'reset-timer'
+        || type === 'weekly-usage'
+        || id.includes('lbl-used')
+        || id.includes('lbl-block')
+        || id.includes('lbl-reset')
+        || id.includes('lbl-weekly');
+}
+
+function migrateMochiBillingIntoExistingLines(existing: MochiSettings & { lines?: unknown[] }): boolean {
+    if (!Array.isArray(existing.lines))
+        existing.lines = [];
+
+    for (let i = 0; i < existing.lines.length; i++) {
+        const line = existing.lines[i];
+        if (!Array.isArray(line))
+            continue;
+
+        const items = line as MochiLineItem[];
+        if (!items.some(isOldClaudeUsageItem))
+            continue;
+
+        const kept = items.filter(item => !isOldClaudeUsageItem(item));
+        existing.lines[i] = [
+            ...makeMochiBillingItems(`L${i + 1}`),
+            ...kept
+        ];
+        return true;
+    }
+
     return false;
 }
 
@@ -142,6 +192,11 @@ async function writeStatuslineSettings(opts: SetupOptions): Promise<{ result: St
         const recommended = buildRecommendedSettings();
         await fs.promises.writeFile(settingsPath, JSON.stringify(recommended, null, 2), 'utf-8');
         return { result: 'created', backupPath };
+    }
+
+    if (migrateMochiBillingIntoExistingLines(existing)) {
+        await fs.promises.writeFile(settingsPath, JSON.stringify(existing, null, 2), 'utf-8');
+        return { result: 'appended' };
     }
 
     if (hasMochiSubscriptionWidget(existing)) {

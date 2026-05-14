@@ -28,13 +28,14 @@ Response fields we read (snake-case from the API, mapped into the cache):
 
 | API field | Cache field | Used by |
 |---|---|---|
+| direct balance fields, if present (`user_balance_usd`, `user_remain_quota_usd`, `balance_usd`, etc.) | `directBalanceUsd` | balance widget (preferred) |
 | `data.user_quota_usd` | `accountQuotaUsd` | balance widget (quota / top-up total) |
 | `data.user_used_quota_usd` | `accountUsedUsd` | balance widget (remaining = quota − used) |
 | `data.today_used_quota_usd` | `todayUsedUsd` | daily-spend widget |
 | `data.token_remain_quota_usd` | `tokenRemainUsd` | subscription widget |
 | `data.token_unlimited` | `tokenUnlimited` | subscription widget |
 
-The balance widget renders the account remaining balance (`user_quota_usd − user_used_quota_usd`). Token subscription state is rendered separately by `mochiapi-subscription`, so an unlimited token no longer turns the account balance into `∞`.
+The balance widget prefers a direct account-balance field when the API returns one. If the direct value is absent, it falls back to `user_quota_usd − user_used_quota_usd`. Token subscription state is rendered separately by `mochiapi-subscription`, so an unlimited token no longer turns the account balance into `∞`.
 
 ## Install (one-shot)
 

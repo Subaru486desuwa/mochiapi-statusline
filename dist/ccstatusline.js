@@ -67062,26 +67062,61 @@ function toBool(v) {
     return v;
   return null;
 }
+function firstNum(...values2) {
+  for (const value of values2) {
+    const parsed = toNum(value);
+    if (parsed !== null)
+      return parsed;
+  }
+  return null;
+}
+function dataObject(resp) {
+  if (!resp || typeof resp !== "object")
+    return {};
+  const root = resp;
+  const data = root.data;
+  if (data && typeof data === "object")
+    return data;
+  return root;
+}
+async function fetchDirectBalance(cfg) {
+  const candidates = [
+    "/v1/user/balance",
+    "/api/user/balance",
+    "/api/user/self"
+  ];
+  for (const path7 of candidates) {
+    try {
+      const d = dataObject(await httpGet(`${cfg.baseUrl}${path7}`, cfg.token, 5000));
+      const balance = firstNum(d.user_usd_available, d.user_available_usd, d.user_balance_usd, d.user_remain_quota_usd, d.user_remaining_quota_usd, d.remain_balance, d.remaining_balance, d.balance_usd, d.balance);
+      if (balance !== null)
+        return balance;
+    } catch {}
+  }
+  return null;
+}
 async function fetchBalance(cfg) {
   const now2 = Date.now();
   try {
     const resp = await httpGet(`${cfg.baseUrl}/api/user/dashboard/balance`, cfg.token);
-    const r = resp;
-    const d = r.data;
+    const d = dataObject(resp);
+    const directBalanceUsd = firstNum(d.user_balance_usd, d.user_remain_quota_usd, d.user_remaining_quota_usd, d.user_usd_available, d.remain_balance, d.remaining_balance, d.balance_usd, d.balance) ?? await fetchDirectBalance(cfg);
     return {
       fetchedAt: now2,
       ok: true,
-      accountQuotaUsd: toNum(d?.user_quota_usd),
-      accountUsedUsd: toNum(d?.user_used_quota_usd),
-      todayUsedUsd: toNum(d?.today_used_quota_usd),
-      tokenRemainUsd: toNum(d?.token_remain_quota_usd),
-      tokenUnlimited: toBool(d?.token_unlimited)
+      directBalanceUsd,
+      accountQuotaUsd: toNum(d.user_quota_usd),
+      accountUsedUsd: toNum(d.user_used_quota_usd),
+      todayUsedUsd: toNum(d.today_used_quota_usd),
+      tokenRemainUsd: toNum(d.token_remain_quota_usd),
+      tokenUnlimited: toBool(d.token_unlimited)
     };
   } catch (e) {
     const prev = readCache2();
     return {
       fetchedAt: now2,
       ok: false,
+      directBalanceUsd: prev?.directBalanceUsd ?? null,
       accountQuotaUsd: prev?.accountQuotaUsd ?? null,
       accountUsedUsd: prev?.accountUsedUsd ?? null,
       todayUsedUsd: prev?.todayUsedUsd ?? null,
@@ -67116,7 +67151,9 @@ function viewFromCache(cache3, cfg) {
   const tokenRemain = cache3.tokenRemainUsd;
   const unlimited = typeof quota === "number" && quota >= UNLIMITED_THRESHOLD;
   let balanceUsd = null;
-  if (!unlimited && typeof quota === "number" && typeof used === "number") {
+  if (!unlimited && typeof cache3.directBalanceUsd === "number") {
+    balanceUsd = cache3.directBalanceUsd;
+  } else if (!unlimited && typeof quota === "number" && typeof used === "number") {
     balanceUsd = Math.max(0, quota - used);
   } else if (!unlimited) {
     balanceUsd = typeof quota === "number" ? quota : tokenRemain;
@@ -67124,6 +67161,8 @@ function viewFromCache(cache3, cfg) {
   const stale = cfg !== null && Date.now() - cache3.fetchedAt > cfg.refreshIntervalSec * 2000;
   return {
     balanceUsd,
+    directBalance: typeof cache3.directBalanceUsd === "number",
+    directBalanceUsd: cache3.directBalanceUsd,
     accountQuotaUsd: cache3.accountQuotaUsd,
     accountUsedUsd: cache3.accountUsedUsd,
     tokenRemainUsd: cache3.tokenRemainUsd,
@@ -68447,8 +68486,10 @@ function buildRecommendedSettings() {
         { id: "L1-changes", type: "git-changes", color: LABEL_FG, backgroundColor: CHANGES_BG, bold: true, rawValue: true, metadata: { hideNoGit: "true" } }
       ],
       [
-        { id: "L2-lbl-cost", type: "custom-text", color: LABEL_FG, backgroundColor: USAGE_BG, bold: true, customText: "会话花费", merge: "no-padding" },
-        { id: "L2-cost", type: "session-cost", color: LABEL_FG, backgroundColor: USAGE_BG, bold: true, rawValue: true },
+        { id: "L2-lbl-balance", type: "custom-text", color: LABEL_FG, backgroundColor: BALANCE_BG, bold: true, customText: "用户余额", merge: "no-padding" },
+        { id: "L2-balance", type: MOCHI_BALANCE_TYPE, color: LABEL_FG, backgroundColor: BALANCE_BG, bold: true, rawValue: true },
+        { id: "L2-lbl-today", type: "custom-text", color: LABEL_FG, backgroundColor: SPEND_BG, bold: true, customText: "今日消耗", merge: "no-padding" },
+        { id: "L2-today", type: MOCHI_DAILY_TYPE, color: LABEL_FG, backgroundColor: SPEND_BG, bold: true, rawValue: true },
         { id: "L2-lbl-sum", type: "custom-text", color: LABEL_FG, backgroundColor: SPEED_BG, bold: true, customText: "TPS", merge: "no-padding" },
         { id: "L2-sum", type: "total-speed", color: LABEL_FG, backgroundColor: SPEED_BG, bold: true, rawValue: true }
       ],
@@ -68476,6 +68517,14 @@ function buildRecommendedSettings() {
     }
   };
 }
+function makeMochiBillingItems(prefix) {
+  return [
+    { id: `${prefix}-lbl-balance`, type: "custom-text", color: LABEL_FG, backgroundColor: BALANCE_BG, bold: true, customText: "用户余额", merge: "no-padding" },
+    { id: `${prefix}-balance`, type: MOCHI_BALANCE_TYPE, color: LABEL_FG, backgroundColor: BALANCE_BG, bold: true, rawValue: true },
+    { id: `${prefix}-lbl-today`, type: "custom-text", color: LABEL_FG, backgroundColor: SPEND_BG, bold: true, customText: "今日消耗", merge: "no-padding" },
+    { id: `${prefix}-today`, type: MOCHI_DAILY_TYPE, color: LABEL_FG, backgroundColor: SPEND_BG, bold: true, rawValue: true }
+  ];
+}
 function hasMochiSubscriptionWidget(settings) {
   if (!Array.isArray(settings.lines))
     return false;
@@ -68487,6 +68536,30 @@ function hasMochiSubscriptionWidget(settings) {
         return true;
       }
     }
+  }
+  return false;
+}
+function isOldClaudeUsageItem(item) {
+  const type = item.type;
+  const id = typeof item.id === "string" ? item.id : "";
+  return type === "session-usage" || type === "block-timer" || type === "reset-timer" || type === "weekly-usage" || id.includes("lbl-used") || id.includes("lbl-block") || id.includes("lbl-reset") || id.includes("lbl-weekly");
+}
+function migrateMochiBillingIntoExistingLines(existing) {
+  if (!Array.isArray(existing.lines))
+    existing.lines = [];
+  for (let i = 0;i < existing.lines.length; i++) {
+    const line = existing.lines[i];
+    if (!Array.isArray(line))
+      continue;
+    const items = line;
+    if (!items.some(isOldClaudeUsageItem))
+      continue;
+    const kept = items.filter((item) => !isOldClaudeUsageItem(item));
+    existing.lines[i] = [
+      ...makeMochiBillingItems(`L${i + 1}`),
+      ...kept
+    ];
+    return true;
   }
   return false;
 }
@@ -68516,6 +68589,10 @@ async function writeStatuslineSettings(opts) {
     const recommended = buildRecommendedSettings();
     await fs16.promises.writeFile(settingsPath2, JSON.stringify(recommended, null, 2), "utf-8");
     return { result: "created", backupPath };
+  }
+  if (migrateMochiBillingIntoExistingLines(existing)) {
+    await fs16.promises.writeFile(settingsPath2, JSON.stringify(existing, null, 2), "utf-8");
+    return { result: "appended" };
   }
   if (hasMochiSubscriptionWidget(existing)) {
     return { result: "has-widget" };
@@ -68627,7 +68704,7 @@ async function runMochiApiSetup() {
   console.log("");
   console.log("Setup complete. Open a new Claude Code session to see the status line.");
 }
-var STATUSLINE_COMMAND = "mochiapi-statusline", MOCHI_SUBSCRIPTION_TYPE = "mochiapi-subscription", LABEL_FG = "hex:111827", MODEL_BG = "hex:7AA2F7", CONTEXT_BG = "hex:414868", GIT_BG = "hex:BB9AF7", CHANGES_BG = "hex:F7768E", USAGE_BG = "hex:9ECE6A", SPEED_BG = "hex:7DCFFF", BALANCE_BG = "hex:2AC3DE", DARK_FG = "hex:C0CAF5";
+var STATUSLINE_COMMAND = "mochiapi-statusline", MOCHI_BALANCE_TYPE = "mochiapi-balance", MOCHI_DAILY_TYPE = "mochiapi-daily-spend", MOCHI_SUBSCRIPTION_TYPE = "mochiapi-subscription", LABEL_FG = "hex:111827", MODEL_BG = "hex:7AA2F7", CONTEXT_BG = "hex:414868", GIT_BG = "hex:BB9AF7", CHANGES_BG = "hex:F7768E", SPEED_BG = "hex:7DCFFF", BALANCE_BG = "hex:2AC3DE", SPEND_BG = "hex:FF9E64", DARK_FG = "hex:C0CAF5";
 var init_mochiapi_setup = __esm(async () => {
   init_mochiapi();
   await __promiseAll([

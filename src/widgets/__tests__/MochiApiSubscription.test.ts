@@ -24,6 +24,7 @@ describe('MochiApiSubscriptionWidget', () => {
         vi.spyOn(mochiapi, 'readCache').mockReturnValue({
             fetchedAt: Date.now(),
             ok: true,
+            directBalanceUsd: null,
             accountQuotaUsd: 9.999936,
             accountUsedUsd: 8.460298,
             todayUsedUsd: 0.2766,
