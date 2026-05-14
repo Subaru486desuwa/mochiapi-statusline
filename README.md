@@ -31,7 +31,7 @@
 <br />
 
 > [!IMPORTANT]
-> **This is the `mochiapi-statusline` fork** — a customized build of upstream [sirmalloc/ccstatusline](https://github.com/sirmalloc/ccstatusline) with a built-in **MochiAPI balance widget** plus a one-shot setup that wires Claude Code and the recommended dracula three-line layout for you.
+> **This is the `mochiapi-statusline` fork** — a customized build of upstream [sirmalloc/ccstatusline](https://github.com/sirmalloc/ccstatusline) with a built-in **MochiAPI balance widget** plus a one-shot setup that wires Claude Code and the recommended Mochi three-line layout for you.
 >
 > **If you came here to use this fork, follow [MOCHIAPI.md](MOCHIAPI.md) — not the upstream instructions below.** The two commands you need:
 >

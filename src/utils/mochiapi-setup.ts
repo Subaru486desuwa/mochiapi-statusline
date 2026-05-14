@@ -25,6 +25,19 @@ const STATUSLINE_COMMAND = 'mochiapi-statusline';
 const MOCHI_BALANCE_TYPE = 'mochiapi-balance';
 const MOCHI_DAILY_TYPE = 'mochiapi-daily-spend';
 
+const LABEL_FG = 'hex:111827';
+const MODEL_BG = 'hex:7AA2F7';
+const CONTEXT_BG = 'hex:414868';
+const GIT_BG = 'hex:BB9AF7';
+const CHANGES_BG = 'hex:F7768E';
+const USAGE_BG = 'hex:9ECE6A';
+const TIMER_BG = 'hex:565F89';
+const WEEKLY_BG = 'hex:E0AF68';
+const SPEED_BG = 'hex:7DCFFF';
+const BALANCE_BG = 'hex:2AC3DE';
+const SPEND_BG = 'hex:FF9E64';
+const DARK_FG = 'hex:C0CAF5';
+
 interface SetupOptions {
     skipStatusline?: boolean;
     skipClaudeWire?: boolean;
@@ -44,30 +57,30 @@ function buildRecommendedSettings(): unknown {
         version: 3,
         lines: [
             [
-                { id: 'L1-lbl-model', type: 'custom-text', color: 'white', backgroundColor: 'bgBlue', bold: true, customText: '模型' },
-                { id: 'L1-model', type: 'model', color: 'white', backgroundColor: 'bgBlue', bold: true, rawValue: true, metadata: { keepContext: 'true' } },
-                { id: 'L1-lbl-ctx', type: 'custom-text', color: 'white', backgroundColor: 'bgBrightBlack', bold: true, customText: '上下文' },
-                { id: 'L1-ctx', type: 'context-length', color: 'white', backgroundColor: 'bgBrightBlack', bold: true, rawValue: true },
-                { id: 'L1-branch', type: 'git-branch', color: 'white', backgroundColor: 'bgMagenta', bold: true, rawValue: true, metadata: { hideNoGit: 'true' } },
-                { id: 'L1-changes', type: 'git-changes', color: 'white', backgroundColor: 'bgRed', bold: true, rawValue: true, metadata: { hideNoGit: 'true' } }
+                { id: 'L1-lbl-model', type: 'custom-text', color: LABEL_FG, backgroundColor: MODEL_BG, bold: true, customText: '模型', merge: 'no-padding' },
+                { id: 'L1-model', type: 'model', color: LABEL_FG, backgroundColor: MODEL_BG, bold: true, rawValue: true, metadata: { keepContext: 'true' } },
+                { id: 'L1-lbl-ctx', type: 'custom-text', color: DARK_FG, backgroundColor: CONTEXT_BG, bold: true, customText: '上下文', merge: 'no-padding' },
+                { id: 'L1-ctx', type: 'context-length', color: DARK_FG, backgroundColor: CONTEXT_BG, bold: true, rawValue: true },
+                { id: 'L1-branch', type: 'git-branch', color: LABEL_FG, backgroundColor: GIT_BG, bold: true, rawValue: true, metadata: { hideNoGit: 'true' } },
+                { id: 'L1-changes', type: 'git-changes', color: LABEL_FG, backgroundColor: CHANGES_BG, bold: true, rawValue: true, metadata: { hideNoGit: 'true' } }
             ],
             [
-                { id: 'L2-lbl-used', type: 'custom-text', color: 'black', backgroundColor: 'bgGreen', bold: true, customText: '时段用量' },
-                { id: 'L2-used', type: 'session-usage', color: 'black', backgroundColor: 'bgGreen', bold: true, rawValue: true },
-                { id: 'L2-lbl-block', type: 'custom-text', color: 'white', backgroundColor: 'bgBrightBlack', bold: true, customText: '时段' },
-                { id: 'L2-block', type: 'block-timer', color: 'white', backgroundColor: 'bgBrightBlack', bold: true, rawValue: true, metadata: { compact: 'true' } },
-                { id: 'L2-lbl-reset', type: 'custom-text', color: 'black', backgroundColor: 'bgGreen', bold: true, customText: '重置' },
-                { id: 'L2-reset', type: 'reset-timer', color: 'black', backgroundColor: 'bgGreen', bold: true, rawValue: true, metadata: { compact: 'true' } },
-                { id: 'L2-lbl-weekly', type: 'custom-text', color: 'white', backgroundColor: 'bgMagenta', bold: true, customText: '周用量' },
-                { id: 'L2-weekly', type: 'weekly-usage', color: 'white', backgroundColor: 'bgMagenta', bold: true, rawValue: true },
-                { id: 'L2-lbl-sum', type: 'custom-text', color: 'white', backgroundColor: 'bgRed', bold: true, customText: 'TPS' },
-                { id: 'L2-sum', type: 'total-speed', color: 'white', backgroundColor: 'bgRed', bold: true, rawValue: true }
+                { id: 'L2-lbl-used', type: 'custom-text', color: LABEL_FG, backgroundColor: USAGE_BG, bold: true, customText: '时段用量', merge: 'no-padding' },
+                { id: 'L2-used', type: 'session-usage', color: LABEL_FG, backgroundColor: USAGE_BG, bold: true, rawValue: true },
+                { id: 'L2-lbl-block', type: 'custom-text', color: DARK_FG, backgroundColor: TIMER_BG, bold: true, customText: '时段', merge: 'no-padding' },
+                { id: 'L2-block', type: 'block-timer', color: DARK_FG, backgroundColor: TIMER_BG, bold: true, rawValue: true, metadata: { compact: 'true' } },
+                { id: 'L2-lbl-reset', type: 'custom-text', color: LABEL_FG, backgroundColor: USAGE_BG, bold: true, customText: '重置', merge: 'no-padding' },
+                { id: 'L2-reset', type: 'reset-timer', color: LABEL_FG, backgroundColor: USAGE_BG, bold: true, rawValue: true, metadata: { compact: 'true' } },
+                { id: 'L2-lbl-weekly', type: 'custom-text', color: LABEL_FG, backgroundColor: WEEKLY_BG, bold: true, customText: '周用量', merge: 'no-padding' },
+                { id: 'L2-weekly', type: 'weekly-usage', color: LABEL_FG, backgroundColor: WEEKLY_BG, bold: true, rawValue: true },
+                { id: 'L2-lbl-sum', type: 'custom-text', color: LABEL_FG, backgroundColor: SPEED_BG, bold: true, customText: 'TPS', merge: 'no-padding' },
+                { id: 'L2-sum', type: 'total-speed', color: LABEL_FG, backgroundColor: SPEED_BG, bold: true, rawValue: true }
             ],
             [
-                { id: 'L3-lbl-mochi', type: 'custom-text', color: 'black', backgroundColor: 'bgCyan', bold: true, customText: '用户余额' },
-                { id: 'L3-mochi', type: MOCHI_BALANCE_TYPE, color: 'black', backgroundColor: 'bgCyan', bold: true, rawValue: true },
-                { id: 'L3-lbl-today', type: 'custom-text', color: 'white', backgroundColor: 'bgMagenta', bold: true, customText: '今日消耗' },
-                { id: 'L3-today', type: MOCHI_DAILY_TYPE, color: 'white', backgroundColor: 'bgMagenta', bold: true, rawValue: true }
+                { id: 'L3-lbl-mochi', type: 'custom-text', color: LABEL_FG, backgroundColor: BALANCE_BG, bold: true, customText: '用户余额', merge: 'no-padding' },
+                { id: 'L3-mochi', type: MOCHI_BALANCE_TYPE, color: LABEL_FG, backgroundColor: BALANCE_BG, bold: true, rawValue: true },
+                { id: 'L3-lbl-today', type: 'custom-text', color: LABEL_FG, backgroundColor: SPEND_BG, bold: true, customText: '今日消耗', merge: 'no-padding' },
+                { id: 'L3-today', type: MOCHI_DAILY_TYPE, color: LABEL_FG, backgroundColor: SPEND_BG, bold: true, rawValue: true }
             ]
         ],
         flexMode: 'full',
@@ -79,11 +92,11 @@ function buildRecommendedSettings(): unknown {
         minimalistMode: false,
         powerline: {
             enabled: true,
-            separators: ['', ''],
-            separatorInvertBackground: [true, true],
-            startCaps: ['', ''],
-            endCaps: ['', ''],
-            theme: 'dracula',
+            separators: ['\uE0B0'],
+            separatorInvertBackground: [false],
+            startCaps: ['\uE0B6'],
+            endCaps: ['\uE0B4'],
+            theme: 'custom',
             autoAlign: false,
             continueThemeAcrossLines: false
         }
@@ -150,10 +163,10 @@ async function writeStatuslineSettings(opts: SetupOptions): Promise<{ result: St
     if (!Array.isArray(existing.lines))
         existing.lines = [];
     (existing.lines).push([
-        { id: 'L3-lbl-mochi', type: 'custom-text', color: 'black', backgroundColor: 'bgCyan', bold: true, customText: '用户余额' },
-        { id: 'L3-mochi', type: MOCHI_BALANCE_TYPE, color: 'black', backgroundColor: 'bgCyan', bold: true, rawValue: true },
-        { id: 'L3-lbl-today', type: 'custom-text', color: 'white', backgroundColor: 'bgMagenta', bold: true, customText: '今日消耗' },
-        { id: 'L3-today', type: MOCHI_DAILY_TYPE, color: 'white', backgroundColor: 'bgMagenta', bold: true, rawValue: true }
+        { id: 'L3-lbl-mochi', type: 'custom-text', color: LABEL_FG, backgroundColor: BALANCE_BG, bold: true, customText: '用户余额', merge: 'no-padding' },
+        { id: 'L3-mochi', type: MOCHI_BALANCE_TYPE, color: LABEL_FG, backgroundColor: BALANCE_BG, bold: true, rawValue: true },
+        { id: 'L3-lbl-today', type: 'custom-text', color: LABEL_FG, backgroundColor: SPEND_BG, bold: true, customText: '今日消耗', merge: 'no-padding' },
+        { id: 'L3-today', type: MOCHI_DAILY_TYPE, color: LABEL_FG, backgroundColor: SPEND_BG, bold: true, rawValue: true }
     ]);
     await fs.promises.writeFile(settingsPath, JSON.stringify(existing, null, 2), 'utf-8');
     return { result: 'appended' };
@@ -225,7 +238,7 @@ export async function runMochiApiSetup(): Promise<void> {
     const cache = await fetchBalance(cfg);
     writeCache(cache);
     if (cache.ok) {
-        console.log(`✓ balance probe OK (quota=$${cache.accountQuotaUsd}, used=$${cache.accountUsedUsd}, today=$${cache.todayUsedUsd})`);
+        console.log(`✓ balance probe OK (balance=$${cache.accountQuotaUsd}, used=$${cache.accountUsedUsd}, today=$${cache.todayUsedUsd})`);
     } else {
         console.error(`✗ balance probe failed: ${cache.error}`);
         process.exitCode = 2;
@@ -236,9 +249,9 @@ export async function runMochiApiSetup(): Promise<void> {
             const { result, backupPath } = await writeStatuslineSettings(opts);
             const ccPath = getConfigPath();
             if (result === 'created') {
-                console.log(`✓ ccstatusline layout (dracula 3-line) → ${ccPath}`);
+                console.log(`✓ ccstatusline layout (mochi 3-line) → ${ccPath}`);
             } else if (result === 'replaced') {
-                console.log(`✓ ccstatusline layout reset to dracula 3-line → ${ccPath}`);
+                console.log(`✓ ccstatusline layout reset to mochi 3-line → ${ccPath}`);
                 if (backupPath)
                     console.log(`  previous file backed up → ${backupPath}`);
             } else if (result === 'appended') {

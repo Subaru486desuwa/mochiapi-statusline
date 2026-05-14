@@ -23,7 +23,7 @@ export interface MochiApiConfig {
 export interface MochiApiCache {
     fetchedAt: number;
     ok: boolean;
-    /** Account total quota (USD) — data.user_quota_usd. */
+    /** Account balance (USD) — data.user_quota_usd. */
     accountQuotaUsd: number | null;
     /** Account used (USD) — data.user_used_quota_usd. */
     accountUsedUsd: number | null;
@@ -185,11 +185,11 @@ export function maybeRefreshInBackground(cfg: MochiApiConfig, cache: MochiApiCac
 }
 
 export interface MochiBalanceView {
-    /** Account remaining balance (USD) = accountQuotaUsd − accountUsedUsd, when both are present. */
+    /** Account balance (USD), taken directly from accountQuotaUsd when present. */
     balanceUsd: number | null;
     /** Today's spend (USD). */
     todayUsedUsd: number | null;
-    /** Account is unlimited when the total quota is sentinel-large (≥ 1e7). */
+    /** Account is unlimited when the account balance is sentinel-large (≥ 1e7). */
     unlimited: boolean;
     stale: boolean;
     error?: string;
@@ -199,13 +199,16 @@ export function viewFromCache(cache: MochiApiCache | null, cfg: MochiApiConfig |
     if (!cache)
         return null;
 
-    const quota = cache.accountQuotaUsd;
-    const used = cache.accountUsedUsd;
-    const unlimited = typeof quota === 'number' && quota >= UNLIMITED_THRESHOLD;
+    const accountBalance = cache.accountQuotaUsd;
+    const tokenRemain = cache.tokenRemainUsd;
+    const unlimited = cache.tokenUnlimited === true
+        || (typeof accountBalance === 'number' && accountBalance >= UNLIMITED_THRESHOLD);
 
     let balanceUsd: number | null = null;
-    if (!unlimited && typeof quota === 'number' && typeof used === 'number') {
-        balanceUsd = quota - used;
+    if (!unlimited) {
+        balanceUsd = typeof accountBalance === 'number'
+            ? accountBalance
+            : tokenRemain;
     }
 
     const stale = cfg !== null && Date.now() - cache.fetchedAt > cfg.refreshIntervalSec * 2000;

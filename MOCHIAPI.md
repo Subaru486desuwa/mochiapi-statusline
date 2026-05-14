@@ -28,13 +28,13 @@ Response fields we read (snake-case from the API, mapped into the cache):
 
 | API field | Cache field | Used by |
 |---|---|---|
-| `data.user_quota_usd` | `accountQuotaUsd` | balance widget (total) |
-| `data.user_used_quota_usd` | `accountUsedUsd` | balance widget (account remaining = total − used) |
+| `data.user_quota_usd` | `accountQuotaUsd` | balance widget (account balance) |
+| `data.user_used_quota_usd` | `accountUsedUsd` | setup diagnostics / cache context |
 | `data.today_used_quota_usd` | `todayUsedUsd` | daily-spend widget |
-| `data.token_remain_quota_usd` | `tokenRemainUsd` | (reserved, not yet rendered) |
-| `data.token_unlimited` | `tokenUnlimited` | (reserved, not yet rendered) |
+| `data.token_remain_quota_usd` | `tokenRemainUsd` | balance fallback when account balance is missing |
+| `data.token_unlimited` | `tokenUnlimited` | unlimited balance detection |
 
-The balance widget renders `∞` when `accountQuotaUsd ≥ 1e7` (a sentinel for unlimited accounts).
+The balance widget reads `user_quota_usd` directly as the account balance; it does not subtract `user_used_quota_usd` again. It renders `∞` when `token_unlimited` is true or the balance sentinel is ≥ `1e7`.
 
 ## Install (one-shot)
 
@@ -56,7 +56,7 @@ Grab your token from <https://mochiapi.com/dashboard> first; the setup will past
 
 1. Save your token + base URL to `~/.config/mochiapi-statusline/config.json` (or `%APPDATA%\mochiapi-statusline\config.json` on Windows)
 2. Probe the balance endpoint to confirm the token works
-3. Write the recommended **dracula three-line powerline layout** to `~/.config/ccstatusline/settings.json` (or merge a Mochi balance row into an existing one)
+3. Write the recommended **Mochi three-line powerline layout** to `~/.config/ccstatusline/settings.json` (or merge a Mochi balance row into an existing one)
 4. Point Claude Code's `~/.claude/settings.json` `statusLine.command` at `mochiapi-statusline`
 
 Open a fresh Claude Code session and the status line should light up.
@@ -118,18 +118,18 @@ The fork ships two MochiAPI widgets, both fed from the same cached response:
 
 | Widget type | Renders | Default color |
 |---|---|---|
-| `mochiapi-balance` | account remaining balance — `$X.XX` or `∞` for unlimited accounts | cyan |
+| `mochiapi-balance` | account balance — `$X.XX` or `∞` for unlimited accounts | cyan |
 | `mochiapi-daily-spend` | today's spend — `$X.XX` | magenta |
 
 Neither widget has display modes — each emits a single number. A trailing `*` means the cached value is older than `2 × refreshIntervalSec` (usually a transient network/upstream issue); the widget keeps rendering the last good value while the background refresher retries.
 
 ## What the default layout looks like
 
-The dracula three-line layout that `--mochiapi-setup` writes to `~/.config/ccstatusline/settings.json`:
+The Mochi three-line layout that `--mochiapi-setup` writes to `~/.config/ccstatusline/settings.json`:
 
 - **Line 1**: `模型 / Sonnet 4.6 (1M context) / 上下文 / <tokens> / <branch> / <changes>` — branch+changes auto-hide outside a git repo (`hideNoGit` flag); the model name keeps its `(1M context)` suffix (`keepContext` flag, fork-only).
 - **Line 2**: `时段用量 / 5.0% / 时段 / 3h41m / 重置 / 1h18m / 周用量 / 12.0% / TPS / <t/s>`
-- **Line 3**: `用户余额 / $1.54 / 今日消耗 / $0.025` — `mochiapi-balance` widget (cyan, account remaining; `∞` for unlimited accounts) plus `mochiapi-daily-spend` widget (magenta, today's spend so far).
+- **Line 3**: `用户余额 / $9.999 / 今日消耗 / $0.025` — `mochiapi-balance` widget (cyan, account balance; `∞` for unlimited accounts) plus `mochiapi-daily-spend` widget (orange, today's spend so far).
 
 To customize, launch the TUI: `mochiapi-statusline`. To inspect or hand-edit the JSON, look at `~/.config/ccstatusline/settings.json` (macOS / Linux) or `%USERPROFILE%\.config\ccstatusline\settings.json` (Windows). That file is the upstream ccstatusline TUI's settings — distinct from `~/.config/mochiapi-statusline/config.json` which holds your token.
 
@@ -145,7 +145,7 @@ echo '{"session_id":"test","model":{"id":"claude-sonnet-4-6","display_name":"Son
 '{"session_id":"test","model":{"id":"claude-sonnet-4-6","display_name":"Sonnet 4.6 (1M context)"},"workspace":{"current_dir":".","project_dir":"."},"cost":{"total_cost_usd":0},"transcript_path":"NUL","output_style":{"name":"default"}}' | mochiapi-statusline
 ```
 
-Three Powerline-styled rows in dracula colors. If separators show as `?` your terminal isn't using a Nerd Font — fix that first.
+Three Powerline-styled rows in Mochi colors. If separators show as `?` your terminal isn't using a Nerd Font — fix that first.
 
 ## Cross-platform notes
 
