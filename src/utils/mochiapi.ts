@@ -228,7 +228,7 @@ function emptyCache(now: number, ok: boolean): MochiApiCache {
     };
 }
 
-function cacheFromTokenUsage(resp: unknown, now: number, prev: MochiApiCache | null): MochiApiCache {
+async function cacheFromTokenUsage(cfg: MochiApiConfig, resp: unknown, now: number, prev: MochiApiCache | null): Promise<MochiApiCache> {
     const d = dataObject(resp);
     const totalUsedUsd = firstNum(
         d.total_usd_used,
@@ -242,20 +242,30 @@ function cacheFromTokenUsage(resp: unknown, now: number, prev: MochiApiCache | n
         d.today_used_usd
     ) ?? estimateTodayUsedUsd(totalUsedUsd, prev, todayKey);
 
+    let directBalanceUsd = firstNum(
+        d.user_usd_available,
+        d.user_available_usd,
+        d.user_balance_usd,
+        d.user_remain_quota_usd,
+        d.user_remaining_quota_usd,
+        d.remain_balance,
+        d.remaining_balance,
+        d.balance_usd,
+        d.balance
+    );
+    if (directBalanceUsd === null) {
+        try {
+            const dashResp = await httpGet(`${cfg.baseUrl}/api/user/dashboard/balance`, cfg.token);
+            return await cacheFromDashboard(cfg, dashResp, now);
+        } catch {
+            // dashboard unavailable too — fall through with the partial token-usage cache below
+        }
+    }
+
     return {
         fetchedAt: now,
         ok: true,
-        directBalanceUsd: firstNum(
-            d.user_usd_available,
-            d.user_available_usd,
-            d.user_balance_usd,
-            d.user_remain_quota_usd,
-            d.user_remaining_quota_usd,
-            d.remain_balance,
-            d.remaining_balance,
-            d.balance_usd,
-            d.balance
-        ),
+        directBalanceUsd,
         accountQuotaUsd: firstNum(
             d.user_quota_usd,
             d.user_total_quota_usd
@@ -284,6 +294,7 @@ async function cacheFromDashboard(cfg: MochiApiConfig, resp: unknown, now: numbe
         d.user_remain_quota_usd,
         d.user_remaining_quota_usd,
         d.user_usd_available,
+        d.user_quota_usd,
         d.remain_balance,
         d.remaining_balance,
         d.balance_usd,
@@ -346,7 +357,7 @@ export async function fetchBalance(cfg: MochiApiConfig, previousCache?: MochiApi
 
     try {
         const resp = await httpGet(`${cfg.baseUrl}/api/usage/token/`, cfg.token);
-        return cacheFromTokenUsage(resp, now, prev);
+        return await cacheFromTokenUsage(cfg, resp, now, prev);
     } catch (e) {
         errors.push(`/api/usage/token/: ${e instanceof Error ? e.message : String(e)}`);
     }

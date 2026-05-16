@@ -56044,7 +56044,7 @@ function getTerminalWidth() {
 function canDetectTerminalWidth() {
   return probeTerminalWidth() !== null;
 }
-var __dirname = "C:\\Users\\slh\\mochiapi-statusline\\src\\utils", PACKAGE_VERSION = "0.1.0";
+var __dirname = "C:\\Users\\slh\\mochiapi-build-tmp\\src\\utils", PACKAGE_VERSION = "0.1.0";
 var init_terminal = () => {};
 
 // src/utils/renderer.ts
@@ -67135,15 +67135,22 @@ function emptyCache(now2, ok) {
     tokenTotalUsedLocalDate: null
   };
 }
-function cacheFromTokenUsage(resp, now2, prev) {
+async function cacheFromTokenUsage(cfg, resp, now2, prev) {
   const d = dataObject(resp);
   const totalUsedUsd = firstNum(d.total_usd_used, d.token_total_usd_used, d.total_used_usd);
   const todayKey = localDateKey(now2);
   const todayUsedUsd = firstNum(d.today_used_quota_usd, d.today_usd_used, d.today_used_usd) ?? estimateTodayUsedUsd(totalUsedUsd, prev, todayKey);
+  let directBalanceUsd = firstNum(d.user_usd_available, d.user_available_usd, d.user_balance_usd, d.user_remain_quota_usd, d.user_remaining_quota_usd, d.remain_balance, d.remaining_balance, d.balance_usd, d.balance);
+  if (directBalanceUsd === null) {
+    try {
+      const dashResp = await httpGet(`${cfg.baseUrl}/api/user/dashboard/balance`, cfg.token);
+      return await cacheFromDashboard(cfg, dashResp, now2);
+    } catch {}
+  }
   return {
     fetchedAt: now2,
     ok: true,
-    directBalanceUsd: firstNum(d.user_usd_available, d.user_available_usd, d.user_balance_usd, d.user_remain_quota_usd, d.user_remaining_quota_usd, d.remain_balance, d.remaining_balance, d.balance_usd, d.balance),
+    directBalanceUsd,
     accountQuotaUsd: firstNum(d.user_quota_usd, d.user_total_quota_usd),
     accountUsedUsd: firstNum(d.user_used_quota_usd, d.user_usd_used),
     todayUsedUsd,
@@ -67155,7 +67162,7 @@ function cacheFromTokenUsage(resp, now2, prev) {
 }
 async function cacheFromDashboard(cfg, resp, now2) {
   const d = dataObject(resp);
-  const directBalanceUsd = firstNum(d.user_balance_usd, d.user_remain_quota_usd, d.user_remaining_quota_usd, d.user_usd_available, d.remain_balance, d.remaining_balance, d.balance_usd, d.balance) ?? await fetchDirectBalance(cfg);
+  const directBalanceUsd = firstNum(d.user_balance_usd, d.user_remain_quota_usd, d.user_remaining_quota_usd, d.user_usd_available, d.user_quota_usd, d.remain_balance, d.remaining_balance, d.balance_usd, d.balance) ?? await fetchDirectBalance(cfg);
   const totalUsedUsd = firstNum(d.total_usd_used, d.token_total_usd_used, d.total_used_usd);
   return {
     fetchedAt: now2,
@@ -67192,7 +67199,7 @@ async function fetchBalance(cfg, previousCache) {
   const errors3 = [];
   try {
     const resp = await httpGet(`${cfg.baseUrl}/api/usage/token/`, cfg.token);
-    return cacheFromTokenUsage(resp, now2, prev);
+    return await cacheFromTokenUsage(cfg, resp, now2, prev);
   } catch (e) {
     errors3.push(`/api/usage/token/: ${e instanceof Error ? e.message : String(e)}`);
   }
@@ -68585,10 +68592,6 @@ function buildRecommendedSettings() {
         { id: "L2-today", type: MOCHI_DAILY_TYPE, color: LABEL_FG, backgroundColor: SPEND_BG, bold: true, rawValue: true },
         { id: "L2-lbl-sum", type: "custom-text", color: LABEL_FG, backgroundColor: SPEED_BG, bold: true, customText: "TPS", merge: "no-padding" },
         { id: "L2-sum", type: "total-speed", color: LABEL_FG, backgroundColor: SPEED_BG, bold: true, rawValue: true }
-      ],
-      [
-        { id: "L3-lbl-mochi", type: "custom-text", color: LABEL_FG, backgroundColor: BALANCE_BG, bold: true, customText: "订阅信息", merge: "no-padding" },
-        { id: "L3-mochi", type: MOCHI_SUBSCRIPTION_TYPE, color: LABEL_FG, backgroundColor: BALANCE_BG, bold: true, rawValue: true }
       ]
     ],
     flexMode: "full",
@@ -68620,14 +68623,14 @@ function makeMochiBillingItems(prefix) {
     { id: `${prefix}-tps`, type: "total-speed", color: LABEL_FG, backgroundColor: SPEED_BG, bold: true, rawValue: true }
   ];
 }
-function hasMochiSubscriptionWidget(settings) {
+function hasMochiBillingWidget(settings) {
   if (!Array.isArray(settings.lines))
     return false;
   for (const line of settings.lines) {
     if (!Array.isArray(line))
       continue;
     for (const item of line) {
-      if (item.type === MOCHI_SUBSCRIPTION_TYPE) {
+      if (item.type === MOCHI_BALANCE_TYPE || item.type === MOCHI_DAILY_TYPE) {
         return true;
       }
     }
@@ -68689,15 +68692,13 @@ async function writeStatuslineSettings(opts) {
     await fs16.promises.writeFile(settingsPath2, JSON.stringify(existing, null, 2), "utf-8");
     return { result: "appended" };
   }
-  if (hasMochiSubscriptionWidget(existing)) {
+  if (hasMochiBillingWidget(existing)) {
     return { result: "has-widget" };
   }
   if (!Array.isArray(existing.lines))
     existing.lines = [];
-  existing.lines.push([
-    { id: "L3-lbl-mochi", type: "custom-text", color: LABEL_FG, backgroundColor: BALANCE_BG, bold: true, customText: "订阅信息", merge: "no-padding" },
-    { id: "L3-mochi", type: MOCHI_SUBSCRIPTION_TYPE, color: LABEL_FG, backgroundColor: BALANCE_BG, bold: true, rawValue: true }
-  ]);
+  const prefix = `L${existing.lines.length + 1}`;
+  existing.lines.push(makeMochiBillingItems(prefix));
   await fs16.promises.writeFile(settingsPath2, JSON.stringify(existing, null, 2), "utf-8");
   return { result: "appended" };
 }
@@ -68768,9 +68769,9 @@ async function runMochiApiSetup() {
       const { result: result2, backupPath } = await writeStatuslineSettings(opts);
       const ccPath = getConfigPath();
       if (result2 === "created") {
-        console.log(`✓ ccstatusline layout (mochi 3-line) → ${ccPath}`);
+        console.log(`✓ ccstatusline layout (mochi 2-line) → ${ccPath}`);
       } else if (result2 === "replaced") {
-        console.log(`✓ ccstatusline layout reset to mochi 3-line → ${ccPath}`);
+        console.log(`✓ ccstatusline layout reset to mochi 2-line → ${ccPath}`);
         if (backupPath)
           console.log(`  previous file backed up → ${backupPath}`);
       } else if (result2 === "appended") {
@@ -68799,7 +68800,7 @@ async function runMochiApiSetup() {
   console.log("");
   console.log("Setup complete. Open a new Claude Code session to see the status line.");
 }
-var STATUSLINE_COMMAND = "mochiapi-statusline", MOCHI_BALANCE_TYPE = "mochiapi-balance", MOCHI_DAILY_TYPE = "mochiapi-daily-spend", MOCHI_SUBSCRIPTION_TYPE = "mochiapi-subscription", LABEL_FG = "hex:111827", MODEL_BG = "hex:7AA2F7", CONTEXT_BG = "hex:414868", GIT_BG = "hex:BB9AF7", CHANGES_BG = "hex:F7768E", SPEED_BG = "hex:7DCFFF", BALANCE_BG = "hex:2AC3DE", SPEND_BG = "hex:FF9E64", DARK_FG = "hex:C0CAF5", __mochiApiSetupTest;
+var STATUSLINE_COMMAND = "mochiapi-statusline", MOCHI_BALANCE_TYPE = "mochiapi-balance", MOCHI_DAILY_TYPE = "mochiapi-daily-spend", LABEL_FG = "hex:111827", MODEL_BG = "hex:7AA2F7", CONTEXT_BG = "hex:414868", GIT_BG = "hex:BB9AF7", CHANGES_BG = "hex:F7768E", SPEED_BG = "hex:7DCFFF", BALANCE_BG = "hex:2AC3DE", SPEND_BG = "hex:FF9E64", DARK_FG = "hex:C0CAF5", __mochiApiSetupTest;
 var init_mochiapi_setup = __esm(async () => {
   init_mochiapi();
   await __promiseAll([
