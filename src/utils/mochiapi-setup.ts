@@ -24,7 +24,6 @@ function readEnv(name: string): string | undefined {
 const STATUSLINE_COMMAND = 'mochiapi-statusline';
 const MOCHI_BALANCE_TYPE = 'mochiapi-balance';
 const MOCHI_DAILY_TYPE = 'mochiapi-daily-spend';
-const MOCHI_SUBSCRIPTION_TYPE = 'mochiapi-subscription';
 
 const LABEL_FG = 'hex:111827';
 const MODEL_BG = 'hex:7AA2F7';
@@ -69,10 +68,6 @@ function buildRecommendedSettings(): unknown {
                 { id: 'L2-today', type: MOCHI_DAILY_TYPE, color: LABEL_FG, backgroundColor: SPEND_BG, bold: true, rawValue: true },
                 { id: 'L2-lbl-sum', type: 'custom-text', color: LABEL_FG, backgroundColor: SPEED_BG, bold: true, customText: 'TPS', merge: 'no-padding' },
                 { id: 'L2-sum', type: 'total-speed', color: LABEL_FG, backgroundColor: SPEED_BG, bold: true, rawValue: true }
-            ],
-            [
-                { id: 'L3-lbl-mochi', type: 'custom-text', color: LABEL_FG, backgroundColor: BALANCE_BG, bold: true, customText: '订阅信息', merge: 'no-padding' },
-                { id: 'L3-mochi', type: MOCHI_SUBSCRIPTION_TYPE, color: LABEL_FG, backgroundColor: BALANCE_BG, bold: true, rawValue: true }
             ]
         ],
         flexMode: 'full',
@@ -109,14 +104,14 @@ function makeMochiBillingItems(prefix: string): MochiLineItem[] {
     ];
 }
 
-function hasMochiSubscriptionWidget(settings: MochiSettings): boolean {
+function hasMochiBillingWidget(settings: MochiSettings): boolean {
     if (!Array.isArray(settings.lines))
         return false;
     for (const line of settings.lines) {
         if (!Array.isArray(line))
             continue;
         for (const item of line as MochiLineItem[]) {
-            if (item.type === MOCHI_SUBSCRIPTION_TYPE) {
+            if (item.type === MOCHI_BALANCE_TYPE || item.type === MOCHI_DAILY_TYPE) {
                 return true;
             }
         }
@@ -203,16 +198,14 @@ async function writeStatuslineSettings(opts: SetupOptions): Promise<{ result: St
         return { result: 'appended' };
     }
 
-    if (hasMochiSubscriptionWidget(existing)) {
+    if (hasMochiBillingWidget(existing)) {
         return { result: 'has-widget' };
     }
 
     if (!Array.isArray(existing.lines))
         existing.lines = [];
-    (existing.lines).push([
-        { id: 'L3-lbl-mochi', type: 'custom-text', color: LABEL_FG, backgroundColor: BALANCE_BG, bold: true, customText: '订阅信息', merge: 'no-padding' },
-        { id: 'L3-mochi', type: MOCHI_SUBSCRIPTION_TYPE, color: LABEL_FG, backgroundColor: BALANCE_BG, bold: true, rawValue: true }
-    ]);
+    const prefix = `L${existing.lines.length + 1}`;
+    (existing.lines).push(makeMochiBillingItems(prefix));
     await fs.promises.writeFile(settingsPath, JSON.stringify(existing, null, 2), 'utf-8');
     return { result: 'appended' };
 }
@@ -294,9 +287,9 @@ export async function runMochiApiSetup(): Promise<void> {
             const { result, backupPath } = await writeStatuslineSettings(opts);
             const ccPath = getConfigPath();
             if (result === 'created') {
-                console.log(`✓ ccstatusline layout (mochi 3-line) → ${ccPath}`);
+                console.log(`✓ ccstatusline layout (mochi 2-line) → ${ccPath}`);
             } else if (result === 'replaced') {
-                console.log(`✓ ccstatusline layout reset to mochi 3-line → ${ccPath}`);
+                console.log(`✓ ccstatusline layout reset to mochi 2-line → ${ccPath}`);
                 if (backupPath)
                     console.log(`  previous file backed up → ${backupPath}`);
             } else if (result === 'appended') {
