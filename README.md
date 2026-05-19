@@ -33,11 +33,10 @@
 > [!IMPORTANT]
 > **This is the `mochiapi-statusline` fork** — a customized build of upstream [sirmalloc/ccstatusline](https://github.com/sirmalloc/ccstatusline) with a built-in **MochiAPI balance widget** plus a one-shot setup that wires Claude Code and the recommended Mochi three-line layout for you.
 >
-> **If you came here to use this fork, follow [MOCHIAPI.md](MOCHIAPI.md) — not the upstream instructions below.** The two commands you need:
+> **If you came here to use this fork, follow [MOCHIAPI.md](MOCHIAPI.md) — not the upstream instructions below.** The one command you need (macOS / Linux / Windows):
 >
 > ```bash
-> npm install -g github:Subaru486desuwa/mochiapi-statusline
-> mochiapi-statusline --mochiapi-setup
+> npm install -g mochiapi-statusline && mochiapi-statusline --mochiapi-setup
 > ```
 >
 > The rest of this README is upstream documentation and applies as-is to the underlying ccstatusline engine (widgets, TUI, themes, etc.) — keep reading if you want to customize beyond the defaults.

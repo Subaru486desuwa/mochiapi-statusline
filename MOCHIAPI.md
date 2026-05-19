@@ -39,19 +39,23 @@ The balance widget prefers a direct account-balance field when the API returns o
 
 ## Install (one-shot)
 
-Requires **Node.js ≥ 14**. Two commands total — install the package, then run the setup.
+Requires **Node.js ≥ 14**. One command — installs the package and walks you through setup.
 
 > **Windows prerequisite for the powerline look:** The default layout uses Nerd Font glyphs (``, ``) as Powerline separators. Without a Nerd Font, your terminal renders them as `?` boxes. Install one (`winget install DEVCOM.JetBrainsMonoNerdFont`) and set it as the font face in Windows Terminal / your terminal of choice. See [docs/WINDOWS.md § Powerline Font Support](docs/WINDOWS.md#powerline-font-support).
 
-### macOS / Linux / Windows (PowerShell)
+### macOS / Linux / Windows (one-liner)
 
 ```bash
-# 1. install (same command on all three OSes)
-npm install -g github:Subaru486desuwa/mochiapi-statusline
-
-# 2. interactive setup — paste your MochiAPI token when prompted
-mochiapi-statusline --mochiapi-setup
+npm install -g mochiapi-statusline && mochiapi-statusline --mochiapi-setup
 ```
+
+Works in bash, zsh, fish, PowerShell 7+, and `cmd.exe`. The `&&` chains install → interactive setup.
+
+> ⚠️ **Windows PowerShell 5.1** (Windows 10 default) doesn't support `&&`. Run the two halves separately:
+> ```powershell
+> npm install -g mochiapi-statusline
+> mochiapi-statusline --mochiapi-setup
+> ```
 
 Grab your token from <https://mochiapi.com/dashboard> first; the setup will paste it into the right place. By default `--mochiapi-setup` will:
 
@@ -62,9 +66,22 @@ Grab your token from <https://mochiapi.com/dashboard> first; the setup will past
 
 Open a fresh Claude Code session and the status line should light up.
 
-The pre-built `dist/ccstatusline.js` is committed in the repo and the package declares no `prepare` script, so neither install path triggers a local build — the bundled binary drops straight in.
+The pre-built `dist/ccstatusline.js` ships inside the npm tarball and the package declares no `prepare` / `postinstall` script — install drops the bundled binary straight in, no local build, no surprise scripts.
 
-> ℹ️ **Alternative form:** `npm install -g https://github.com/Subaru486desuwa/mochiapi-statusline/archive/refs/heads/main.tar.gz`. Equivalent — tarball is a smaller download, github: shorthand clones the repo.
+### Alternative install sources
+
+Use these only if the npm registry is blocked, or if you want to track `main` HEAD ahead of a tagged release:
+
+```bash
+# Track main HEAD (rolling, no version pinning)
+npm install -g github:Subaru486desuwa/mochiapi-statusline
+
+# Pin to a specific git tag
+npm install -g github:Subaru486desuwa/mochiapi-statusline#v0.1.0
+
+# Tarball (smallest download, equivalent to github: shorthand)
+npm install -g https://github.com/Subaru486desuwa/mochiapi-statusline/archive/refs/heads/main.tar.gz
+```
 
 ### Non-interactive / scripted
 
@@ -94,8 +111,8 @@ Cache is refreshed in a detached subprocess every `refreshIntervalSec` (default 
 ### Upgrade / uninstall
 
 ```bash
-# upgrade — rerun the install command to pull latest main
-npm install -g github:Subaru486desuwa/mochiapi-statusline
+# upgrade to the latest published version
+npm install -g mochiapi-statusline@latest
 
 # uninstall
 npm uninstall -g mochiapi-statusline
