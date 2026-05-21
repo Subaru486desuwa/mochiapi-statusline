@@ -49,7 +49,9 @@ export class MochiApiSubscriptionWidget implements Widget {
         if (!view)
             return labeled ? 'Mochi: ...' : '...';
 
-        const balance = view.balanceUsd === null ? '?' : fmtUsd(view.balanceUsd);
+        const balance = view.balanceUsd !== null
+            ? fmtUsd(view.balanceUsd)
+            : (view.unlimited ? '∞' : '?');
         const today = view.todayUsedUsd === null ? '?' : fmtUsd(view.todayUsedUsd);
         const subscription = view.tokenUnlimited === true
             ? '∞'

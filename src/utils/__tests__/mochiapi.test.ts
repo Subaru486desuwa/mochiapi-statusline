@@ -97,6 +97,16 @@ describe('mochiapi cache view', () => {
         expect(view?.unlimited).toBe(true);
     });
 
+    it('treats token-unlimited as account-unlimited when no account-level signal is available', () => {
+        // Mochi's /api/usage/token/ does not surface account quota for unlimited tokens,
+        // so falling back to the token-unlimited flag is the only way to render a balance.
+        const view = viewFromCache(cache({ tokenUnlimited: true }), cfg);
+
+        expect(view?.balanceUsd).toBeNull();
+        expect(view?.unlimited).toBe(true);
+        expect(view?.tokenUnlimited).toBe(true);
+    });
+
     it('marks old cache data as stale', () => {
         vi.spyOn(Date, 'now').mockReturnValue(100000);
         const view = viewFromCache(cache({ fetchedAt: 30000, accountQuotaUsd: 1 }), cfg);
@@ -199,6 +209,79 @@ describe('mochiapi balance fetch', () => {
             'https://mochiapi.com/api/user/balance',
             'https://mochiapi.com/api/user/self'
         ]);
+    });
+
+    it('maps newapi-style bare quota fields (total_used / total_available) to USD using QuotaPerUnit=500000', async () => {
+        // Real mochi response shape for an unlimited token: bare quota units, no _usd suffix.
+        vi.spyOn(globalThis, 'fetch').mockImplementation(vi.fn().mockResolvedValue(new Response(JSON.stringify({
+            code: true,
+            data: {
+                expires_at: 0,
+                model_limits: {},
+                model_limits_enabled: false,
+                name: 'max',
+                object: 'token_usage',
+                total_available: -5789614,
+                total_granted: 0,
+                total_used: 5789614,
+                unlimited_quota: true
+            },
+            message: 'ok'
+        }), { status: 200 })));
+
+        const result = await fetchBalance(cfg, null);
+
+        expect(result.ok).toBe(true);
+        expect(result.tokenUnlimited).toBe(true);
+        expect(result.tokenTotalUsedUsd).toBeCloseTo(11.579228);
+        // total_granted / total_available are 0 / negative placeholders for unlimited tokens
+        // and must not leak into account-level fields.
+        expect(result.accountQuotaUsd).toBeNull();
+        expect(result.tokenRemainUsd).toBeNull();
+    });
+
+    it('treats newapi bare quota fields as account/token signals when the token is limited', async () => {
+        vi.spyOn(globalThis, 'fetch').mockImplementation(vi.fn().mockResolvedValue(new Response(JSON.stringify({
+            data: {
+                total_used: 250_000,
+                total_granted: 1_000_000,
+                total_available: 750_000,
+                unlimited_quota: false
+            }
+        }), { status: 200 })));
+
+        const result = await fetchBalance(cfg, null);
+
+        expect(result.tokenUnlimited).toBe(false);
+        expect(result.accountQuotaUsd).toBeCloseTo(2);
+        expect(result.tokenRemainUsd).toBeCloseTo(1.5);
+        expect(result.tokenTotalUsedUsd).toBeCloseTo(0.5);
+    });
+
+    it('falls back to account-level used diff when prev token baseline is null', async () => {
+        vi.spyOn(Date, 'now').mockReturnValue(new Date('2026-05-22T08:30:00').getTime());
+        // Simulates a prev cache that lost its token-level baseline (e.g. polluted by
+        // an empty/dashboard fallback write) but still has account-level used.
+        const previousCache = cache({
+            fetchedAt: new Date('2026-05-22T07:00:00').getTime(),
+            tokenTotalUsedUsd: null,
+            tokenTotalUsedLocalDate: '2026-05-22',
+            accountUsedUsd: 40.0
+        });
+        vi.spyOn(globalThis, 'fetch').mockImplementation(vi.fn().mockResolvedValue(new Response(JSON.stringify({
+            data: {
+                user_quota_usd: 129.78,
+                user_used_quota_usd: 41.5,
+                user_remain_quota_usd: 88.28,
+                total_used: 9000000,
+                unlimited_quota: true
+            }
+        }), { status: 200 })));
+
+        const result = await fetchBalance(cfg, previousCache);
+
+        expect(result.todayUsedUsd).toBeCloseTo(1.5);
+        expect(result.accountUsedUsd).toBeCloseTo(41.5);
     });
 
     it('estimates today spend from same-day token cumulative spend', async () => {

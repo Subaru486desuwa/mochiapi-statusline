@@ -56044,7 +56044,7 @@ function getTerminalWidth() {
 function canDetectTerminalWidth() {
   return probeTerminalWidth() !== null;
 }
-var __dirname = "C:\\Users\\slh\\mochiapi-build-tmp\\src\\utils", PACKAGE_VERSION = "0.1.0";
+var __dirname = "C:\\Users\\slh\\mochiapi-statusline\\src\\utils", PACKAGE_VERSION = "__PACKAGE_VERSION__";
 var init_terminal = () => {};
 
 // src/utils/renderer.ts
@@ -67110,16 +67110,17 @@ function localDateKey(now2 = Date.now()) {
   const day = `${d.getDate()}`.padStart(2, "0");
   return `${y}-${m}-${day}`;
 }
-function estimateTodayUsedUsd(totalUsedUsd, prev, todayKey) {
-  if (totalUsedUsd === null || !prev)
-    return null;
-  const prevTotal = typeof prev.tokenTotalUsedUsd === "number" ? prev.tokenTotalUsedUsd : null;
-  if (prevTotal === null)
+function estimateTodayUsedUsd(currentTokenUsd, prev, todayKey, currentAccountUsedUsd = null) {
+  if (!prev)
     return null;
   const prevDate = prev.tokenTotalUsedLocalDate ?? localDateKey(prev.fetchedAt);
   if (prevDate !== todayKey)
     return null;
-  return Math.max(0, totalUsedUsd - prevTotal);
+  if (currentTokenUsd !== null && typeof prev.tokenTotalUsedUsd === "number")
+    return Math.max(0, currentTokenUsd - prev.tokenTotalUsedUsd);
+  if (currentAccountUsedUsd !== null && typeof prev.accountUsedUsd === "number")
+    return Math.max(0, currentAccountUsedUsd - prev.accountUsedUsd);
+  return null;
 }
 function emptyCache(now2, ok) {
   return {
@@ -67135,27 +67136,30 @@ function emptyCache(now2, ok) {
     tokenTotalUsedLocalDate: null
   };
 }
-async function cacheFromTokenUsage(cfg, resp, now2, prev) {
+function quotaToUsd(quota) {
+  return quota === null ? null : quota / NEWAPI_QUOTA_PER_USD;
+}
+function cacheFromTokenUsage(resp, now2, prev) {
   const d = dataObject(resp);
-  const totalUsedUsd = firstNum(d.total_usd_used, d.token_total_usd_used, d.total_used_usd);
+  const tokenUnlimited = toBool(d.unlimited_quota) ?? toBool(d.token_unlimited);
+  const totalUsedQuotaUsd = quotaToUsd(toNum(d.total_used));
+  const totalGrantedQuotaUsd = quotaToUsd(toNum(d.total_granted));
+  const totalAvailableQuotaUsd = quotaToUsd(toNum(d.total_available));
+  const totalUsedUsd = firstNum(d.total_usd_used, d.token_total_usd_used, d.total_used_usd) ?? totalUsedQuotaUsd;
+  const accountUsedUsdForEstimate = firstNum(d.user_used_quota_usd, d.user_usd_used);
   const todayKey = localDateKey(now2);
-  const todayUsedUsd = firstNum(d.today_used_quota_usd, d.today_usd_used, d.today_used_usd) ?? estimateTodayUsedUsd(totalUsedUsd, prev, todayKey);
-  let directBalanceUsd = firstNum(d.user_usd_available, d.user_available_usd, d.user_balance_usd, d.user_remain_quota_usd, d.user_remaining_quota_usd, d.remain_balance, d.remaining_balance, d.balance_usd, d.balance);
-  if (directBalanceUsd === null) {
-    try {
-      const dashResp = await httpGet(`${cfg.baseUrl}/api/user/dashboard/balance`, cfg.token);
-      return await cacheFromDashboard(cfg, dashResp, now2);
-    } catch {}
-  }
+  const todayUsedUsd = firstNum(d.today_used_quota_usd, d.today_usd_used, d.today_used_usd) ?? estimateTodayUsedUsd(totalUsedUsd, prev, todayKey, accountUsedUsdForEstimate);
+  const limitedTokenQuotaFallback = tokenUnlimited === true ? null : totalGrantedQuotaUsd;
+  const limitedTokenRemainFallback = tokenUnlimited === true ? null : totalAvailableQuotaUsd;
   return {
     fetchedAt: now2,
     ok: true,
-    directBalanceUsd,
-    accountQuotaUsd: firstNum(d.user_quota_usd, d.user_total_quota_usd),
+    directBalanceUsd: firstNum(d.user_usd_available, d.user_available_usd, d.user_balance_usd, d.user_remain_quota_usd, d.user_remaining_quota_usd, d.remain_balance, d.remaining_balance, d.balance_usd, d.balance),
+    accountQuotaUsd: firstNum(d.user_quota_usd, d.user_total_quota_usd) ?? limitedTokenQuotaFallback,
     accountUsedUsd: firstNum(d.user_used_quota_usd, d.user_usd_used),
     todayUsedUsd,
-    tokenRemainUsd: firstNum(d.total_usd_available, d.token_remain_quota_usd, d.token_remaining_quota_usd, d.token_available_usd),
-    tokenUnlimited: toBool(d.unlimited_quota) ?? toBool(d.token_unlimited),
+    tokenRemainUsd: firstNum(d.total_usd_available, d.token_remain_quota_usd, d.token_remaining_quota_usd, d.token_available_usd) ?? limitedTokenRemainFallback,
+    tokenUnlimited,
     tokenTotalUsedUsd: totalUsedUsd,
     tokenTotalUsedLocalDate: totalUsedUsd === null ? null : todayKey
   };
@@ -67199,7 +67203,7 @@ async function fetchBalance(cfg, previousCache) {
   const errors3 = [];
   try {
     const resp = await httpGet(`${cfg.baseUrl}/api/usage/token/`, cfg.token);
-    return await cacheFromTokenUsage(cfg, resp, now2, prev);
+    return cacheFromTokenUsage(resp, now2, prev);
   } catch (e) {
     errors3.push(`/api/usage/token/: ${e instanceof Error ? e.message : String(e)}`);
   }
@@ -67253,7 +67257,10 @@ function viewFromCache(cache3, cfg) {
   const quota = cache3.accountQuotaUsd;
   const used = cache3.accountUsedUsd;
   const tokenRemain = cache3.tokenRemainUsd;
-  const unlimited = typeof quota === "number" && quota >= UNLIMITED_THRESHOLD;
+  const accountSentinelUnlimited = typeof quota === "number" && quota >= UNLIMITED_THRESHOLD;
+  const hasAccountSignal = typeof quota === "number" || typeof used === "number" || typeof cache3.directBalanceUsd === "number";
+  const tokenFallbackUnlimited = !hasAccountSignal && cache3.tokenUnlimited === true;
+  const unlimited = accountSentinelUnlimited || tokenFallbackUnlimited;
   let balanceUsd = null;
   if (typeof cache3.directBalanceUsd === "number") {
     balanceUsd = cache3.directBalanceUsd;
@@ -67284,7 +67291,7 @@ async function refreshCli() {
   const cache3 = await fetchBalance(cfg);
   writeCache2(cache3);
 }
-var DEFAULT_BASE_URL = "https://mochiapi.com", DEFAULT_INTERVAL = 30, UNLIMITED_THRESHOLD = 1e7, MOCHI_CONFIG_PATH, MOCHI_CACHE_PATH;
+var DEFAULT_BASE_URL = "https://mochiapi.com", DEFAULT_INTERVAL = 30, UNLIMITED_THRESHOLD = 1e7, NEWAPI_QUOTA_PER_USD = 500000, MOCHI_CONFIG_PATH, MOCHI_CACHE_PATH;
 var init_mochiapi = __esm(() => {
   MOCHI_CONFIG_PATH = join4(getMochiConfigDir(), "config.json");
   MOCHI_CACHE_PATH = join4(getMochiCacheDir(), "balance.json");
@@ -67329,7 +67336,14 @@ class MochiApiBalanceWidget {
     const view = viewFromCache(cache3, cfg);
     if (!view)
       return labeled ? "Mochi: ..." : "...";
-    const body = view.balanceUsd === null ? "?" : fmtUsd(view.balanceUsd);
+    let body;
+    if (view.balanceUsd !== null) {
+      body = fmtUsd(view.balanceUsd);
+    } else if (view.unlimited) {
+      body = "∞";
+    } else {
+      body = "?";
+    }
     const decorated = view.stale ? `${body}*` : body;
     return labeled ? `Mochi: ${decorated}` : decorated;
   }
@@ -67438,7 +67452,7 @@ class MochiApiSubscriptionWidget {
     const view = viewFromCache(cache3, cfg);
     if (!view)
       return labeled ? "Mochi: ..." : "...";
-    const balance = view.balanceUsd === null ? "?" : fmtUsd3(view.balanceUsd);
+    const balance = view.balanceUsd !== null ? fmtUsd3(view.balanceUsd) : view.unlimited ? "∞" : "?";
     const today = view.todayUsedUsd === null ? "?" : fmtUsd3(view.todayUsedUsd);
     const subscription = view.tokenUnlimited === true ? "∞" : view.tokenRemainUsd === null ? "?" : fmtUsd3(view.tokenRemainUsd);
     const body = `余额 ${balance} · 今日 ${today} · 订阅 ${subscription}`;

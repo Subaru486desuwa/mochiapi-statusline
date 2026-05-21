@@ -47,7 +47,14 @@ export class MochiApiBalanceWidget implements Widget {
         if (!view)
             return labeled ? 'Mochi: ...' : '...';
 
-        const body = view.balanceUsd === null ? '?' : fmtUsd(view.balanceUsd);
+        let body: string;
+        if (view.balanceUsd !== null) {
+            body = fmtUsd(view.balanceUsd);
+        } else if (view.unlimited) {
+            body = '∞';
+        } else {
+            body = '?';
+        }
 
         const decorated = view.stale ? `${body}*` : body;
         return labeled ? `Mochi: ${decorated}` : decorated;

@@ -45,6 +45,7 @@ export interface MochiApiCache {
 const DEFAULT_BASE_URL = 'https://mochiapi.com';
 const DEFAULT_INTERVAL = 30;
 const UNLIMITED_THRESHOLD = 1e7;
+const NEWAPI_QUOTA_PER_USD = 500_000;
 
 function getMochiConfigDir(): string {
     if (platform() === 'win32') {
@@ -196,21 +197,29 @@ function localDateKey(now = Date.now()): string {
     return `${y}-${m}-${day}`;
 }
 
-function estimateTodayUsedUsd(totalUsedUsd: number | null, prev: MochiApiCache | null, todayKey: string): number | null {
-    if (totalUsedUsd === null || !prev)
-        return null;
-
-    const prevTotal = typeof prev.tokenTotalUsedUsd === 'number'
-        ? prev.tokenTotalUsedUsd
-        : null;
-    if (prevTotal === null)
+function estimateTodayUsedUsd(
+    currentTokenUsd: number | null,
+    prev: MochiApiCache | null,
+    todayKey: string,
+    currentAccountUsedUsd: number | null = null
+): number | null {
+    if (!prev)
         return null;
 
     const prevDate = prev.tokenTotalUsedLocalDate ?? localDateKey(prev.fetchedAt);
     if (prevDate !== todayKey)
         return null;
 
-    return Math.max(0, totalUsedUsd - prevTotal);
+    // Preferred: token-level cumulative diff (per-token granularity).
+    if (currentTokenUsd !== null && typeof prev.tokenTotalUsedUsd === 'number')
+        return Math.max(0, currentTokenUsd - prev.tokenTotalUsedUsd);
+
+    // Fallback: account-level cumulative diff. Survives a prev cache whose
+    // token baseline got nulled out by an empty/dashboard fallback write.
+    if (currentAccountUsedUsd !== null && typeof prev.accountUsedUsd === 'number')
+        return Math.max(0, currentAccountUsedUsd - prev.accountUsedUsd);
+
+    return null;
 }
 
 function emptyCache(now: number, ok: boolean): MochiApiCache {
@@ -228,48 +237,58 @@ function emptyCache(now: number, ok: boolean): MochiApiCache {
     };
 }
 
-async function cacheFromTokenUsage(cfg: MochiApiConfig, resp: unknown, now: number, prev: MochiApiCache | null): Promise<MochiApiCache> {
+function quotaToUsd(quota: number | null): number | null {
+    return quota === null ? null : quota / NEWAPI_QUOTA_PER_USD;
+}
+
+function cacheFromTokenUsage(resp: unknown, now: number, prev: MochiApiCache | null): MochiApiCache {
     const d = dataObject(resp);
+    const tokenUnlimited = toBool(d.unlimited_quota) ?? toBool(d.token_unlimited);
+
+    const totalUsedQuotaUsd = quotaToUsd(toNum(d.total_used));
+    const totalGrantedQuotaUsd = quotaToUsd(toNum(d.total_granted));
+    const totalAvailableQuotaUsd = quotaToUsd(toNum(d.total_available));
+
     const totalUsedUsd = firstNum(
         d.total_usd_used,
         d.token_total_usd_used,
         d.total_used_usd
+    ) ?? totalUsedQuotaUsd;
+    const accountUsedUsdForEstimate = firstNum(
+        d.user_used_quota_usd,
+        d.user_usd_used
     );
     const todayKey = localDateKey(now);
     const todayUsedUsd = firstNum(
         d.today_used_quota_usd,
         d.today_usd_used,
         d.today_used_usd
-    ) ?? estimateTodayUsedUsd(totalUsedUsd, prev, todayKey);
+    ) ?? estimateTodayUsedUsd(totalUsedUsd, prev, todayKey, accountUsedUsdForEstimate);
 
-    let directBalanceUsd = firstNum(
-        d.user_usd_available,
-        d.user_available_usd,
-        d.user_balance_usd,
-        d.user_remain_quota_usd,
-        d.user_remaining_quota_usd,
-        d.remain_balance,
-        d.remaining_balance,
-        d.balance_usd,
-        d.balance
-    );
-    if (directBalanceUsd === null) {
-        try {
-            const dashResp = await httpGet(`${cfg.baseUrl}/api/user/dashboard/balance`, cfg.token);
-            return await cacheFromDashboard(cfg, dashResp, now);
-        } catch {
-            // dashboard unavailable too — fall through with the partial token-usage cache below
-        }
-    }
+    // total_granted / total_available collapse to 0 / negative placeholders when the token
+    // is unlimited (mochi backend behaviour). Only treat them as account-derived numbers
+    // for limited tokens, where they actually reflect remaining account quota.
+    const limitedTokenQuotaFallback = tokenUnlimited === true ? null : totalGrantedQuotaUsd;
+    const limitedTokenRemainFallback = tokenUnlimited === true ? null : totalAvailableQuotaUsd;
 
     return {
         fetchedAt: now,
         ok: true,
-        directBalanceUsd,
+        directBalanceUsd: firstNum(
+            d.user_usd_available,
+            d.user_available_usd,
+            d.user_balance_usd,
+            d.user_remain_quota_usd,
+            d.user_remaining_quota_usd,
+            d.remain_balance,
+            d.remaining_balance,
+            d.balance_usd,
+            d.balance
+        ),
         accountQuotaUsd: firstNum(
             d.user_quota_usd,
             d.user_total_quota_usd
-        ),
+        ) ?? limitedTokenQuotaFallback,
         accountUsedUsd: firstNum(
             d.user_used_quota_usd,
             d.user_usd_used
@@ -280,8 +299,8 @@ async function cacheFromTokenUsage(cfg: MochiApiConfig, resp: unknown, now: numb
             d.token_remain_quota_usd,
             d.token_remaining_quota_usd,
             d.token_available_usd
-        ),
-        tokenUnlimited: toBool(d.unlimited_quota) ?? toBool(d.token_unlimited),
+        ) ?? limitedTokenRemainFallback,
+        tokenUnlimited,
         tokenTotalUsedUsd: totalUsedUsd,
         tokenTotalUsedLocalDate: totalUsedUsd === null ? null : todayKey
     };
@@ -357,7 +376,7 @@ export async function fetchBalance(cfg: MochiApiConfig, previousCache?: MochiApi
 
     try {
         const resp = await httpGet(`${cfg.baseUrl}/api/usage/token/`, cfg.token);
-        return await cacheFromTokenUsage(cfg, resp, now, prev);
+        return cacheFromTokenUsage(resp, now, prev);
     } catch (e) {
         errors.push(`/api/usage/token/: ${e instanceof Error ? e.message : String(e)}`);
     }
@@ -440,7 +459,16 @@ export function viewFromCache(cache: MochiApiCache | null, cfg: MochiApiConfig |
     const quota = cache.accountQuotaUsd;
     const used = cache.accountUsedUsd;
     const tokenRemain = cache.tokenRemainUsd;
-    const unlimited = typeof quota === 'number' && quota >= UNLIMITED_THRESHOLD;
+    const accountSentinelUnlimited = typeof quota === 'number' && quota >= UNLIMITED_THRESHOLD;
+    const hasAccountSignal
+        = typeof quota === 'number'
+        || typeof used === 'number'
+        || typeof cache.directBalanceUsd === 'number';
+    // Mochi's /api/usage/token/ does not expose any account-level USD figure when the
+    // token is unlimited, so an unlimited token is the only signal we have to fall back
+    // on. Limited tokens still keep account/token balance separate (see tests).
+    const tokenFallbackUnlimited = !hasAccountSignal && cache.tokenUnlimited === true;
+    const unlimited = accountSentinelUnlimited || tokenFallbackUnlimited;
 
     let balanceUsd: number | null = null;
     if (typeof cache.directBalanceUsd === 'number') {
