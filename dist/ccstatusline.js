@@ -56044,7 +56044,7 @@ function getTerminalWidth() {
 function canDetectTerminalWidth() {
   return probeTerminalWidth() !== null;
 }
-var __dirname = "C:\\Users\\slh\\mochiapi-statusline\\src\\utils", PACKAGE_VERSION = "__PACKAGE_VERSION__";
+var __dirname = "C:\\Users\\slh\\mochiapi-statusline\\src\\utils", PACKAGE_VERSION = "0.1.1";
 var init_terminal = () => {};
 
 // src/utils/renderer.ts

@@ -1,6 +1,6 @@
 {
   "name": "mochiapi-statusline",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "ccstatusline fork with a MochiAPI balance widget (Claude Code status line for MochiAPI users)",
   "module": "src/ccstatusline.ts",
   "type": "module",
