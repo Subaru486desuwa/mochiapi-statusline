@@ -1,7 +1,7 @@
 {
   "name": "mochiapi-statusline",
   "version": "0.1.1",
-  "description": "ccstatusline fork with a MochiAPI balance widget (Claude Code status line for MochiAPI users)",
+  "description": "Claude Code status line for MochiAPI users — account balance, today's spend, model, context, and git in your terminal",
   "module": "src/ccstatusline.ts",
   "type": "module",
   "bin": {
@@ -16,9 +16,7 @@
     "postbuild": "bun run scripts/replace-version.ts",
     "example": "cat scripts/payload.example.json | bun start",
     "lint": "bun tsc --noEmit && eslint . --config eslint.config.js --max-warnings=0",
-    "lint:fix": "bun tsc --noEmit && eslint . --config eslint.config.js --max-warnings=0 --fix",
-    "docs": "typedoc",
-    "docs:clean": "rm -rf typedoc"
+    "lint:fix": "bun tsc --noEmit && eslint . --config eslint.config.js --max-warnings=0 --fix"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

@@ -2,170 +2,174 @@
 
 # mochiapi-statusline
 
-**Claude Code status line for [MochiAPI](https://mochiapi.com) users.**
-One command to install. Account balance, today's spend, and model / context / git in your terminal.
+**[MochiAPI](https://mochiapi.com) 用户的 Claude Code 状态栏。**
+一条命令装好。终端里看模型、上下文、账户余额、今日花费。
 
 [![npm version](https://img.shields.io/npm/v/mochiapi-statusline.svg)](https://www.npmjs.com/package/mochiapi-statusline)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Node.js Version](https://img.shields.io/badge/node-%E2%89%A514-brightgreen.svg)](https://nodejs.org)
 
+![状态栏效果](assets/statusline-demo.png)
+
 </div>
 
 ---
 
-## Install
+## 安装
 
-Requires **Node.js ≥ 14**. One command — installs the package, then runs the interactive setup:
+要 **Node.js ≥ 14**。一条命令装包 + 跑交互式 setup：
 
 ```bash
 npm install -g mochiapi-statusline && mochiapi-statusline --mochiapi-setup
 ```
 
-Works in bash, zsh, fish, PowerShell 7+, and `cmd.exe`. The `&&` chains install → setup.
+bash / zsh / fish / PowerShell 7+ / cmd.exe 都能跑，`&&` 把装包和 setup 串起来。
 
-> **Windows PowerShell 5.1** (Windows 10 default) doesn't support `&&`. Run the two halves separately:
+> **Windows PowerShell 5.1**（Win10 默认）不支持 `&&`，分两步：
 > ```powershell
 > npm install -g mochiapi-statusline
 > mochiapi-statusline --mochiapi-setup
 > ```
 
-Grab your token from <https://mochiapi.com/dashboard> first; the setup will paste it into the right place. `--mochiapi-setup` does four things:
+先去 <https://mochiapi.com/dashboard> 复制 token，setup 会让你粘贴。`--mochiapi-setup` 做四件事：
 
-1. Saves token + base URL → `~/.config/mochiapi-statusline/config.json` (or `%APPDATA%\mochiapi-statusline\config.json` on Windows)
-2. Probes the balance endpoint to confirm the token works
-3. Writes the recommended **Mochi 2-line Powerline layout** to `~/.config/ccstatusline/settings.json` (or appends a Mochi billing row to an existing layout)
-4. Points Claude Code's `~/.claude/settings.json` `statusLine.command` at `mochiapi-statusline`
+1. token + base URL → `~/.config/mochiapi-statusline/config.json`（Windows 是 `%APPDATA%\mochiapi-statusline\config.json`）
+2. 探测一次 balance 接口，确认 token 有效
+3. 把推荐的 **Mochi 两行 Powerline 布局**写入 `~/.config/ccstatusline/settings.json`（已有布局会把 Mochi 计费行追加进去）
+4. 把 Claude Code 的 `~/.claude/settings.json` 里 `statusLine.command` 指向 `mochiapi-statusline`
 
-Open a fresh Claude Code session and the status line lights up.
+开一个新的 Claude Code 会话，状态栏就有了。
 
-> **Windows + Powerline:** the default layout uses Nerd Font glyphs as separators. Without a Nerd Font you'll see `?` boxes. Install one and set it as the terminal font:
+> **Windows + Powerline**：默认布局用 Nerd Font 字形做分隔符，没装会看到 `?` 方块。装一个并设为终端字体：
 >
 > ```powershell
 > winget install DEVCOM.JetBrainsMonoNerdFont
 > ```
 
-The pre-built `dist/ccstatusline.js` ships inside the npm tarball and the package declares no `prepare` / `postinstall` script — install drops the bundled binary straight in, no local build, no surprise scripts.
+`dist/ccstatusline.js` 预构建产物直接打进 npm tarball，包不声明 `prepare` / `postinstall`，安装时不会跑本地构建，bundle 好的 binary 直接落地。
 
-### Alternative install sources
+### 备用安装源
 
-Use these only if the npm registry is blocked, or if you want to track `main` HEAD ahead of a tagged release:
+只在 npm registry 被墙、或者想跟 `main` HEAD 而不是 tag 发布时用：
 
 ```bash
-# Track main HEAD (rolling, no version pinning)
+# 跟踪 main HEAD（滚动，无版本锁定）
 npm install -g github:Subaru486desuwa/mochiapi-statusline
 
-# Pin to a specific git tag
-npm install -g github:Subaru486desuwa/mochiapi-statusline#v0.1.0
+# 锁到特定 git tag
+npm install -g github:Subaru486desuwa/mochiapi-statusline#v0.1.1
 
-# Tarball (smallest download, equivalent to github: shorthand)
+# Tarball 直装（下载最小，等价于 github: 简写）
 npm install -g https://github.com/Subaru486desuwa/mochiapi-statusline/archive/refs/heads/main.tar.gz
 ```
 
-## What the default layout shows
+## 默认布局长这样
 
-Two Powerline rows in Mochi colors:
+两行 Powerline，Mochi 配色（图中是实际效果）：
 
-- **Line 1** — `模型 / Sonnet 4.6 (1M context) / 上下文 / <tokens> / <branch> / <changes>` (branch + changes auto-hide outside a git repo)
-- **Line 2** — `用户余额 / $1.540 / 今日消耗 / $0.277 / TPS / <t/s>` (MochiAPI account balance + today's spend + token output speed)
+- **第一行** — `模型 / Opus 4.7 (1M context) / 上下文 / 50.7k`，仓库内追加 `<分支> / <改动>`，仓库外自动隐藏
+- **第二行** — `用户余额 / $98.43 / 今日消耗 / $11.66 / TPS / 6.4 t/s`（MochiAPI 账户余额 + 今日花费 + token 输出速率）
 
-The `mochiapi-subscription` widget (`余额 $X.XX · 今日 $Y.YY · 订阅 $Z.ZZ/∞` all-in-one) is still available — just not in the default layout, since most MochiAPI relay users have `订阅 ∞` anyway. Add it manually from the TUI widget picker if you want it.
+数值后面带 `*` 表示缓存值比 `2 × refreshIntervalSec`（默认 60 秒）旧，通常是瞬时网络抖动，后台 refresher 在重试。widget 继续显示上一次成功值。
 
-## MochiAPI widgets
+`mochiapi-subscription` widget（三合一：`余额 $X.XX · 今日 $Y.YY · 订阅 $Z.ZZ/∞`）仍然可用，只是不在默认布局——大多数 MochiAPI 中转用户订阅是 `∞`，没意义。需要的话 TUI 里手动加。
 
-Three widgets fed from the same cached `/api/user/dashboard/balance` response:
+## MochiAPI 自带的 widget
 
-| Widget type | Renders | Default color |
+三个 widget 共用一次 `/api/user/dashboard/balance` 请求的缓存：
+
+| Widget 类型 | 渲染 | 默认色 |
 |---|---|---|
-| `mochiapi-balance` | Account remaining balance — `$X.XX` or `∞` for unlimited accounts | cyan |
-| `mochiapi-daily-spend` | Today's spend — `$X.XX` | magenta |
-| `mochiapi-subscription` | `余额 $X.XX · 今日 $Y.YY · 订阅 $Z.ZZ/∞` (not in default layout) | cyan |
+| `mochiapi-balance` | 账户剩余余额 — `$X.XX` 或 `∞`（无限账户） | cyan |
+| `mochiapi-daily-spend` | 今日花费 — `$X.XX` | magenta |
+| `mochiapi-subscription` | `余额 $X.XX · 今日 $Y.YY · 订阅 $Z.ZZ/∞`（不在默认布局） | cyan |
 
-A trailing `*` on a value means the cached number is older than `2 × refreshIntervalSec` (usually a transient upstream issue) — the widget keeps rendering the last good value while the background refresher retries. Cache is refreshed in a detached subprocess every `refreshIntervalSec` (default 30s).
+缓存通过 detached 子进程每 `refreshIntervalSec`（默认 30 秒）刷新一次。
 
 ## CLI
 
 ```bash
-# rerun the interactive setup
+# 再跑一次交互式 setup
 mochiapi-statusline --mochiapi-setup
 
-# non-interactive (CI / scripted)
+# 非交互（CI / 脚本）
 MOCHIAPI_TOKEN=sk-xxxx MOCHIAPI_BASE_URL=https://mochiapi.com \
   mochiapi-statusline --mochiapi-setup
 
-# only write the mochi config — don't touch ccstatusline / Claude Code settings
+# 只写 mochi 配置，不动 ccstatusline / Claude Code 设置
 mochiapi-statusline --mochiapi-setup --skip-statusline --skip-claude-wire
 
-# one-shot cache refresh (also runs in the background every 30s)
+# 手动刷一次余额缓存（后台每 30 秒也会自动刷）
 mochiapi-statusline --mochiapi-refresh
 
-# launch the TUI to customize widgets / colors / layout / Powerline
+# 启动 TUI 调整 widget / 颜色 / 布局 / Powerline
 mochiapi-statusline
 ```
 
-## Upgrade / uninstall
+## 升级 / 卸载
 
 ```bash
-# upgrade to the latest published version
+# 升级到最新发布版本
 npm install -g mochiapi-statusline@latest
 
-# uninstall
+# 卸载
 npm uninstall -g mochiapi-statusline
 ```
 
-## File locations
+## 文件位置
 
-| | macOS / Linux | Windows |
+|  | macOS / Linux | Windows |
 |---|---|---|
 | MochiAPI token + baseUrl | `~/.config/mochiapi-statusline/config.json` | `%APPDATA%\mochiapi-statusline\config.json` |
-| Balance cache | `~/.cache/mochiapi-statusline/balance.json` | `%LOCALAPPDATA%\mochiapi-statusline\cache\balance.json` |
-| Status line layout | `~/.config/ccstatusline/settings.json` | `%USERPROFILE%\.config\ccstatusline\settings.json` |
+| 余额缓存 | `~/.cache/mochiapi-statusline/balance.json` | `%LOCALAPPDATA%\mochiapi-statusline\cache\balance.json` |
+| 状态栏布局 | `~/.config/ccstatusline/settings.json` | `%USERPROFILE%\.config\ccstatusline\settings.json` |
 | Claude Code | `~/.claude/settings.json` | `%USERPROFILE%\.claude\settings.json` |
 
-The token config and the layout config are **two different files**: edit the first to change auth, edit the second (or use the TUI) to change what's rendered.
+token 配置和布局配置是**两个不同的文件**：改鉴权动第一个，改显示哪些 widget 动第二个（或者跑 TUI）。
 
-## Troubleshooting
+## 排错
 
-| Status line shows | Meaning | Fix |
+| 状态栏显示 | 含义 | 处理 |
 |---|---|---|
-| `Mochi: cfg?` | `config.json` not found | rerun `mochiapi-statusline --mochiapi-setup` |
-| `Mochi: ...` | cache hasn't been populated yet | `mochiapi-statusline --mochiapi-refresh`, or wait 30 s |
-| `$X.XX*` (trailing `*`) | cached value is stale | usually transient; the background refresher retries automatically |
-| Separators show as `?` | terminal isn't using a Nerd Font | install a Nerd Font and set it as the terminal font |
+| `Mochi: cfg?` | 找不到 `config.json` | 重新跑 `mochiapi-statusline --mochiapi-setup` |
+| `Mochi: ...` | 缓存还没填 | 跑 `mochiapi-statusline --mochiapi-refresh`，或等 30 秒 |
+| `$X.XX*`（末尾 `*`） | 缓存陈旧 | 通常瞬时上游问题，后台 refresher 会自动重试 |
+| 分隔符显示成 `?` | 终端没用 Nerd Font | 装 Nerd Font 并设为终端字体 |
 
-Pipe a fake Claude Code payload to render once without launching Claude Code:
+不启动 Claude Code 也能渲染一次看看效果：
 
 ```bash
 echo '{"session_id":"test","model":{"id":"claude-sonnet-4-6","display_name":"Sonnet 4.6 (1M context)"},"workspace":{"current_dir":".","project_dir":"."},"cost":{"total_cost_usd":0},"transcript_path":"/tmp/nonexistent","output_style":{"name":"default"}}' \
   | mochiapi-statusline
 ```
 
-## Endpoint contract
+## 接口契约
 
-| Path | Returns |
+| 路径 | 返回 |
 |---|---|
-| `GET ${baseUrl}/api/user/dashboard/balance` | Account-level fields + today's spend (one request feeds all three widgets) |
+| `GET ${baseUrl}/api/user/dashboard/balance` | 账户字段 + 今日花费（一次请求喂三个 widget） |
 
-Bearer auth (`Authorization: Bearer sk-...`). No cookies, no session.
+Bearer 鉴权（`Authorization: Bearer sk-...`），不用 cookie，不用 session。
 
-Fields read from the response:
+从响应里读的字段：
 
-| API field | Used by |
+| API 字段 | 用途 |
 |---|---|
-| direct balance fields (`user_balance_usd`, `user_remain_quota_usd`, `balance_usd`, …) — when the API returns one | balance widget (preferred path) |
-| `data.user_quota_usd` − `data.user_used_quota_usd` | balance widget (fallback when no direct field) |
-| `data.today_used_quota_usd` | daily-spend widget |
-| `data.token_remain_quota_usd` + `data.token_unlimited` | subscription widget |
+| 直接余额字段（`user_balance_usd` / `user_remain_quota_usd` / `balance_usd` 等，存在时） | 余额 widget（首选路径） |
+| `data.user_quota_usd` − `data.user_used_quota_usd` | 余额 widget（直接字段缺失时的回退） |
+| `data.today_used_quota_usd` | 今日花费 widget |
+| `data.token_remain_quota_usd` + `data.token_unlimited` | 订阅 widget |
 
-## Acknowledgements
+## 致谢
 
-The underlying status-line engine is forked from [sirmalloc/ccstatusline](https://github.com/sirmalloc/ccstatusline) (MIT, © Matthew Breedlove). MochiAPI-specific additions only:
+底层状态栏引擎 fork 自 [sirmalloc/ccstatusline](https://github.com/sirmalloc/ccstatusline)（MIT，© Matthew Breedlove）。MochiAPI 部分的增量只有：
 
-- `mochiapi-balance` / `mochiapi-daily-spend` / `mochiapi-subscription` widgets
-- `--mochiapi-setup` / `--mochiapi-refresh` CLI flags
-- One-shot setup wiring (config file + layout + Claude Code `statusLine.command`)
+- `mochiapi-balance` / `mochiapi-daily-spend` / `mochiapi-subscription` 三个 widget
+- `--mochiapi-setup` / `--mochiapi-refresh` 两个 CLI flag
+- 一键 setup（写 config + 写布局 + 接 Claude Code `statusLine.command`）
 
-Everything else — TUI, themes, layout, Powerline rendering, the other ~20 widgets — is upstream code. For deep customization, the upstream README and TUI docs apply unchanged.
+其余的 TUI、主题、布局、Powerline 渲染、20 多个其它 widget 全部是上游代码，深度自定义照样适用上游的 TUI。
 
 ## License
 
-MIT — see [LICENSE](LICENSE) and [NOTICE](NOTICE).
+MIT — 见 [LICENSE](LICENSE) 和 [NOTICE](NOTICE)。
