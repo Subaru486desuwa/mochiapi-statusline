@@ -1362,8 +1362,9 @@ See https://react.dev/link/invalid-hook-call for tips about how to debug and fix
 
 // node_modules/react/index.js
 var require_react = __commonJS((exports, module) => {
+  var react_development = __toESM(require_react_development());
   if (false) {} else {
-    module.exports = require_react_development();
+    module.exports = react_development;
   }
 });
 
@@ -3848,8 +3849,9 @@ var require_scheduler_development = __commonJS((exports) => {
 
 // node_modules/react-reconciler/node_modules/scheduler/index.js
 var require_scheduler = __commonJS((exports, module) => {
+  var scheduler_development = __toESM(require_scheduler_development());
   if (false) {} else {
-    module.exports = require_scheduler_development();
+    module.exports = scheduler_development;
   }
 });
 
@@ -37056,8 +37058,9 @@ React keys must be passed directly to JSX without using spread:
 
 // node_modules/react/jsx-runtime.js
 var require_jsx_runtime = __commonJS((exports, module) => {
+  var react_jsx_runtime_development = __toESM(require_react_jsx_runtime_development());
   if (false) {} else {
-    module.exports = require_react_jsx_runtime_development();
+    module.exports = react_jsx_runtime_development;
   }
 });
 
@@ -55891,6 +55894,15 @@ function getModelContextIdentifier(model) {
   }
   return id ?? displayName;
 }
+function lookupKnownModelWindow(modelIdentifier) {
+  const id = modelIdentifier.toLowerCase();
+  for (const { pattern, windowSize } of KNOWN_MODEL_CONTEXT_WINDOWS) {
+    if (id.includes(pattern)) {
+      return windowSize;
+    }
+  }
+  return null;
+}
 function getContextConfig(modelIdentifier, contextWindowSize) {
   const statusWindowSize = toValidWindowSize(contextWindowSize);
   if (statusWindowSize !== null) {
@@ -55913,9 +55925,26 @@ function getContextConfig(modelIdentifier, contextWindowSize) {
       usableTokens: Math.floor(inferredWindowSize * USABLE_CONTEXT_RATIO)
     };
   }
+  const knownWindowSize = lookupKnownModelWindow(modelIdentifier);
+  if (knownWindowSize !== null) {
+    return {
+      maxTokens: knownWindowSize,
+      usableTokens: Math.floor(knownWindowSize * USABLE_CONTEXT_RATIO)
+    };
+  }
   return defaultConfig;
 }
-var DEFAULT_CONTEXT_WINDOW_SIZE = 200000, USABLE_CONTEXT_RATIO = 0.8;
+var DEFAULT_CONTEXT_WINDOW_SIZE = 200000, USABLE_CONTEXT_RATIO = 0.8, KNOWN_MODEL_CONTEXT_WINDOWS;
+var init_model_context = __esm(() => {
+  KNOWN_MODEL_CONTEXT_WINDOWS = [
+    { pattern: "glm-4.6", windowSize: 200000 },
+    { pattern: "glm-4.5", windowSize: 128000 },
+    { pattern: "glm-4", windowSize: 128000 },
+    { pattern: "kimi-k2", windowSize: 256000 },
+    { pattern: "qwen3-coder", windowSize: 256000 },
+    { pattern: "deepseek", windowSize: 128000 }
+  ];
+});
 
 // src/utils/context-percentage.ts
 function calculateContextPercentageMetrics(context) {
@@ -55939,7 +55968,9 @@ function calculateContextPercentageMetrics(context) {
 function calculateContextPercentage(context) {
   return calculateContextPercentageMetrics(context)?.usedPercentage ?? 0;
 }
-var init_context_percentage = () => {};
+var init_context_percentage = __esm(() => {
+  init_model_context();
+});
 
 // src/utils/terminal.ts
 import { execSync } from "child_process";
@@ -56044,7 +56075,7 @@ function getTerminalWidth() {
 function canDetectTerminalWidth() {
   return probeTerminalWidth() !== null;
 }
-var __dirname = "C:\\Users\\slh\\mochiapi-statusline\\src\\utils", PACKAGE_VERSION = "0.1.1";
+var __dirname = "/Volumes/ExtremeSSD/Developer/mochiapi/statusline/src/utils", PACKAGE_VERSION = "0.1.2";
 var init_terminal = () => {};
 
 // src/utils/renderer.ts
@@ -56870,6 +56901,7 @@ class ContextWindowWidget {
   }
 }
 var init_ContextWindow = __esm(async () => {
+  init_model_context();
   await init_renderer2();
 });
 
@@ -57425,6 +57457,7 @@ class ContextPercentageUsableWidget {
   }
 }
 var init_ContextPercentageUsable = __esm(() => {
+  init_model_context();
   init_context_inverse();
   init_context_slider();
 });
@@ -57820,8 +57853,9 @@ React keys must be passed directly to JSX without using spread:
 
 // node_modules/react/jsx-dev-runtime.js
 var require_jsx_dev_runtime = __commonJS((exports, module) => {
+  var react_jsx_dev_runtime_development = __toESM(require_react_jsx_dev_runtime_development());
   if (false) {} else {
-    module.exports = require_react_jsx_dev_runtime_development();
+    module.exports = react_jsx_dev_runtime_development;
   }
 });
 
@@ -65958,6 +65992,7 @@ class ContextBarWidget {
   }
 }
 var init_ContextBar = __esm(async () => {
+  init_model_context();
   init_usage_display();
   await init_usage();
 });

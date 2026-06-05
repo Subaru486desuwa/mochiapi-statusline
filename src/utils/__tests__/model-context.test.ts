@@ -104,6 +104,72 @@ describe('getContextConfig', () => {
         });
     });
 
+    describe('Known non-Anthropic relay models', () => {
+        it('should return 200k for GLM-4.6', () => {
+            const config = getContextConfig('glm-4.6');
+
+            expect(config.maxTokens).toBe(200000);
+            expect(config.usableTokens).toBe(160000);
+        });
+
+        it('should return 128k for GLM-4.5', () => {
+            const config = getContextConfig('glm-4.5');
+
+            expect(config.maxTokens).toBe(128000);
+            expect(config.usableTokens).toBe(102400);
+        });
+
+        it('should return 256k for Kimi K2', () => {
+            const config = getContextConfig('kimi-k2');
+
+            expect(config.maxTokens).toBe(256000);
+            expect(config.usableTokens).toBe(204800);
+        });
+
+        it('should return 256k for Kimi K2 Turbo', () => {
+            const config = getContextConfig('kimi-k2-turbo');
+
+            expect(config.maxTokens).toBe(256000);
+        });
+
+        it('should return 256k for Qwen3-Coder', () => {
+            const config = getContextConfig('qwen3-coder-480b');
+
+            expect(config.maxTokens).toBe(256000);
+            expect(config.usableTokens).toBe(204800);
+        });
+
+        it('should return 128k for DeepSeek', () => {
+            const config = getContextConfig('deepseek-v3.2');
+
+            expect(config.maxTokens).toBe(128000);
+            expect(config.usableTokens).toBe(102400);
+        });
+
+        it('should match case-insensitively', () => {
+            const config = getContextConfig('GLM-4.6');
+
+            expect(config.maxTokens).toBe(200000);
+        });
+
+        it('should let StatusJSON context_window_size override the table', () => {
+            const config = getContextConfig('glm-4.6', 1000000);
+
+            expect(config.maxTokens).toBe(1000000);
+        });
+
+        it('should let an explicit [1m] suffix override the table', () => {
+            const config = getContextConfig('glm-4.6[1m]');
+
+            expect(config.maxTokens).toBe(1000000);
+        });
+
+        it('should not affect Anthropic models', () => {
+            expect(getContextConfig('claude-opus-4-6').maxTokens).toBe(200000);
+            expect(getContextConfig('claude-sonnet-4-5-20250929[1m]').maxTokens).toBe(1000000);
+        });
+    });
+
     describe('Older/default models', () => {
         it('should return 200k context window for older Sonnet 3.5 model', () => {
             const config = getContextConfig('claude-3-5-sonnet-20241022');

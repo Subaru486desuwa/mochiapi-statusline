@@ -73,6 +73,33 @@ export function getModelContextIdentifier(model?: string | ModelIdentifier): str
     return id ?? displayName;
 }
 
+// Built-in context windows for well-known non-Anthropic models that reach Claude
+// Code through a relay (e.g. MochiAPI). Their model IDs carry no size hint, so
+// without this table they all fall back to the 200k default and the context %
+// denominator is wrong. First match wins; keep specific patterns before generic
+// ones. StatusJSON context_window_size and an explicit size in the model ID both
+// take priority over this table. Values are each vendor's documented native
+// window — edit here when they change.
+const KNOWN_MODEL_CONTEXT_WINDOWS: { pattern: string; windowSize: number }[] = [
+    { pattern: 'glm-4.6', windowSize: 200000 },
+    { pattern: 'glm-4.5', windowSize: 128000 },
+    { pattern: 'glm-4', windowSize: 128000 },
+    { pattern: 'kimi-k2', windowSize: 256000 },
+    { pattern: 'qwen3-coder', windowSize: 256000 },
+    { pattern: 'deepseek', windowSize: 128000 }
+];
+
+function lookupKnownModelWindow(modelIdentifier: string): number | null {
+    const id = modelIdentifier.toLowerCase();
+    for (const { pattern, windowSize } of KNOWN_MODEL_CONTEXT_WINDOWS) {
+        if (id.includes(pattern)) {
+            return windowSize;
+        }
+    }
+
+    return null;
+}
+
 export function getContextConfig(modelIdentifier?: string, contextWindowSize?: number | null): ModelContextConfig {
     const statusWindowSize = toValidWindowSize(contextWindowSize);
     if (statusWindowSize !== null) {
@@ -97,6 +124,14 @@ export function getContextConfig(modelIdentifier?: string, contextWindowSize?: n
         return {
             maxTokens: inferredWindowSize,
             usableTokens: Math.floor(inferredWindowSize * USABLE_CONTEXT_RATIO)
+        };
+    }
+
+    const knownWindowSize = lookupKnownModelWindow(modelIdentifier);
+    if (knownWindowSize !== null) {
+        return {
+            maxTokens: knownWindowSize,
+            usableTokens: Math.floor(knownWindowSize * USABLE_CONTEXT_RATIO)
         };
     }
 
