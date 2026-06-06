@@ -40,3 +40,36 @@ Added a user-selectable MochiAPI subscription-usage widget (percent used + reset
 ### Next Steps
 
 - None - task complete
+
+
+## Session 2: Flatten git history to standalone single-commit repo
+
+**Date**: 2026-06-06
+**Task**: Flatten git history to standalone single-commit repo
+**Branch**: `main`
+
+### Summary
+
+After the 0.2.0 rebrand, confirmed the GitHub repo was already not a fork (isFork:false) and flattened the inherited ccstatusline git history (~290 upstream commits) into a single clean 'Initial commit' (f8876ba) via an orphan branch, then force-pushed main. All 319 tracked files preserved (incl dist/mochiapi-statusline.js); LICENSE + README attribution kept for MIT compliance. Old history retained locally only as tag backup/pre-flatten (3c9c44a). npm 0.2.0 unaffected.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `f8876ba` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
