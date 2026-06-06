@@ -24,6 +24,7 @@ function readEnv(name: string): string | undefined {
 const STATUSLINE_COMMAND = 'mochiapi-statusline';
 const MOCHI_BALANCE_TYPE = 'mochiapi-balance';
 const MOCHI_DAILY_TYPE = 'mochiapi-daily-spend';
+const MOCHI_SUB_TYPE = 'mochiapi-subscription-balance';
 
 const LABEL_FG = 'hex:111827';
 const MODEL_BG = 'hex:7AA2F7';
@@ -61,14 +62,7 @@ function buildRecommendedSettings(): unknown {
                 { id: 'L1-branch', type: 'git-branch', color: LABEL_FG, backgroundColor: GIT_BG, bold: true, rawValue: true, metadata: { hideNoGit: 'true' } },
                 { id: 'L1-changes', type: 'git-changes', color: LABEL_FG, backgroundColor: CHANGES_BG, bold: true, rawValue: true, metadata: { hideNoGit: 'true' } }
             ],
-            [
-                { id: 'L2-lbl-balance', type: 'custom-text', color: LABEL_FG, backgroundColor: BALANCE_BG, bold: true, customText: '用户余额', merge: 'no-padding' },
-                { id: 'L2-balance', type: MOCHI_BALANCE_TYPE, color: LABEL_FG, backgroundColor: BALANCE_BG, bold: true, rawValue: true },
-                { id: 'L2-lbl-today', type: 'custom-text', color: LABEL_FG, backgroundColor: SPEND_BG, bold: true, customText: '今日消耗', merge: 'no-padding' },
-                { id: 'L2-today', type: MOCHI_DAILY_TYPE, color: LABEL_FG, backgroundColor: SPEND_BG, bold: true, rawValue: true },
-                { id: 'L2-lbl-sum', type: 'custom-text', color: LABEL_FG, backgroundColor: SPEED_BG, bold: true, customText: 'TPS', merge: 'no-padding' },
-                { id: 'L2-sum', type: 'total-speed', color: LABEL_FG, backgroundColor: SPEED_BG, bold: true, rawValue: true }
-            ]
+            makeMochiBillingItems('L2')
         ],
         flexMode: 'full',
         compactThreshold: 60,
@@ -95,12 +89,12 @@ interface MochiSettings { lines?: unknown }
 
 function makeMochiBillingItems(prefix: string): MochiLineItem[] {
     return [
-        { id: `${prefix}-lbl-balance`, type: 'custom-text', color: LABEL_FG, backgroundColor: BALANCE_BG, bold: true, customText: '用户余额', merge: 'no-padding' },
+        { id: `${prefix}-lbl-sub`, type: 'custom-text', color: LABEL_FG, backgroundColor: SPEED_BG, bold: true, customText: '订阅', merge: 'no-padding' },
+        { id: `${prefix}-sub`, type: MOCHI_SUB_TYPE, color: LABEL_FG, backgroundColor: SPEED_BG, bold: true, rawValue: true },
+        { id: `${prefix}-lbl-balance`, type: 'custom-text', color: LABEL_FG, backgroundColor: BALANCE_BG, bold: true, customText: '钱包余额', merge: 'no-padding' },
         { id: `${prefix}-balance`, type: MOCHI_BALANCE_TYPE, color: LABEL_FG, backgroundColor: BALANCE_BG, bold: true, rawValue: true },
         { id: `${prefix}-lbl-today`, type: 'custom-text', color: LABEL_FG, backgroundColor: SPEND_BG, bold: true, customText: '今日消耗', merge: 'no-padding' },
-        { id: `${prefix}-today`, type: MOCHI_DAILY_TYPE, color: LABEL_FG, backgroundColor: SPEND_BG, bold: true, rawValue: true },
-        { id: `${prefix}-lbl-tps`, type: 'custom-text', color: LABEL_FG, backgroundColor: SPEED_BG, bold: true, customText: 'TPS', merge: 'no-padding' },
-        { id: `${prefix}-tps`, type: 'total-speed', color: LABEL_FG, backgroundColor: SPEED_BG, bold: true, rawValue: true }
+        { id: `${prefix}-today`, type: MOCHI_DAILY_TYPE, color: LABEL_FG, backgroundColor: SPEND_BG, bold: true, rawValue: true }
     ];
 }
 

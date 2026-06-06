@@ -56075,7 +56075,7 @@ function getTerminalWidth() {
 function canDetectTerminalWidth() {
   return probeTerminalWidth() !== null;
 }
-var __dirname = "/Volumes/ExtremeSSD/Developer/mochiapi/statusline/src/utils", PACKAGE_VERSION = "0.1.3";
+var __dirname = "/Volumes/ExtremeSSD/Developer/mochiapi/statusline/src/utils", PACKAGE_VERSION = "0.1.4";
 var init_terminal = () => {};
 
 // src/utils/renderer.ts
@@ -68734,14 +68734,7 @@ function buildRecommendedSettings() {
         { id: "L1-branch", type: "git-branch", color: LABEL_FG, backgroundColor: GIT_BG, bold: true, rawValue: true, metadata: { hideNoGit: "true" } },
         { id: "L1-changes", type: "git-changes", color: LABEL_FG, backgroundColor: CHANGES_BG, bold: true, rawValue: true, metadata: { hideNoGit: "true" } }
       ],
-      [
-        { id: "L2-lbl-balance", type: "custom-text", color: LABEL_FG, backgroundColor: BALANCE_BG, bold: true, customText: "用户余额", merge: "no-padding" },
-        { id: "L2-balance", type: MOCHI_BALANCE_TYPE, color: LABEL_FG, backgroundColor: BALANCE_BG, bold: true, rawValue: true },
-        { id: "L2-lbl-today", type: "custom-text", color: LABEL_FG, backgroundColor: SPEND_BG, bold: true, customText: "今日消耗", merge: "no-padding" },
-        { id: "L2-today", type: MOCHI_DAILY_TYPE, color: LABEL_FG, backgroundColor: SPEND_BG, bold: true, rawValue: true },
-        { id: "L2-lbl-sum", type: "custom-text", color: LABEL_FG, backgroundColor: SPEED_BG, bold: true, customText: "TPS", merge: "no-padding" },
-        { id: "L2-sum", type: "total-speed", color: LABEL_FG, backgroundColor: SPEED_BG, bold: true, rawValue: true }
-      ]
+      makeMochiBillingItems("L2")
     ],
     flexMode: "full",
     compactThreshold: 60,
@@ -68764,12 +68757,12 @@ function buildRecommendedSettings() {
 }
 function makeMochiBillingItems(prefix) {
   return [
-    { id: `${prefix}-lbl-balance`, type: "custom-text", color: LABEL_FG, backgroundColor: BALANCE_BG, bold: true, customText: "用户余额", merge: "no-padding" },
+    { id: `${prefix}-lbl-sub`, type: "custom-text", color: LABEL_FG, backgroundColor: SPEED_BG, bold: true, customText: "订阅", merge: "no-padding" },
+    { id: `${prefix}-sub`, type: MOCHI_SUB_TYPE, color: LABEL_FG, backgroundColor: SPEED_BG, bold: true, rawValue: true },
+    { id: `${prefix}-lbl-balance`, type: "custom-text", color: LABEL_FG, backgroundColor: BALANCE_BG, bold: true, customText: "钱包余额", merge: "no-padding" },
     { id: `${prefix}-balance`, type: MOCHI_BALANCE_TYPE, color: LABEL_FG, backgroundColor: BALANCE_BG, bold: true, rawValue: true },
     { id: `${prefix}-lbl-today`, type: "custom-text", color: LABEL_FG, backgroundColor: SPEND_BG, bold: true, customText: "今日消耗", merge: "no-padding" },
-    { id: `${prefix}-today`, type: MOCHI_DAILY_TYPE, color: LABEL_FG, backgroundColor: SPEND_BG, bold: true, rawValue: true },
-    { id: `${prefix}-lbl-tps`, type: "custom-text", color: LABEL_FG, backgroundColor: SPEED_BG, bold: true, customText: "TPS", merge: "no-padding" },
-    { id: `${prefix}-tps`, type: "total-speed", color: LABEL_FG, backgroundColor: SPEED_BG, bold: true, rawValue: true }
+    { id: `${prefix}-today`, type: MOCHI_DAILY_TYPE, color: LABEL_FG, backgroundColor: SPEND_BG, bold: true, rawValue: true }
   ];
 }
 function hasMochiBillingWidget(settings) {
@@ -68949,7 +68942,7 @@ async function runMochiApiSetup() {
   console.log("");
   console.log("Setup complete. Open a new Claude Code session to see the status line.");
 }
-var STATUSLINE_COMMAND = "mochiapi-statusline", MOCHI_BALANCE_TYPE = "mochiapi-balance", MOCHI_DAILY_TYPE = "mochiapi-daily-spend", LABEL_FG = "hex:111827", MODEL_BG = "hex:7AA2F7", CONTEXT_BG = "hex:414868", GIT_BG = "hex:BB9AF7", CHANGES_BG = "hex:F7768E", SPEED_BG = "hex:7DCFFF", BALANCE_BG = "hex:2AC3DE", SPEND_BG = "hex:FF9E64", DARK_FG = "hex:C0CAF5", __mochiApiSetupTest;
+var STATUSLINE_COMMAND = "mochiapi-statusline", MOCHI_BALANCE_TYPE = "mochiapi-balance", MOCHI_DAILY_TYPE = "mochiapi-daily-spend", MOCHI_SUB_TYPE = "mochiapi-subscription-balance", LABEL_FG = "hex:111827", MODEL_BG = "hex:7AA2F7", CONTEXT_BG = "hex:414868", GIT_BG = "hex:BB9AF7", CHANGES_BG = "hex:F7768E", SPEED_BG = "hex:7DCFFF", BALANCE_BG = "hex:2AC3DE", SPEND_BG = "hex:FF9E64", DARK_FG = "hex:C0CAF5", __mochiApiSetupTest;
 var init_mochiapi_setup = __esm(async () => {
   init_mochiapi();
   await __promiseAll([

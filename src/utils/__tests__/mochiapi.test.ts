@@ -365,7 +365,7 @@ describe('mochiapi balance fetch', () => {
 });
 
 describe('mochiapi setup migration', () => {
-    it('replaces old usage widgets with user balance, daily spend, and TPS', () => {
+    it('replaces old usage widgets with subscription, wallet balance, and daily spend', () => {
         const settings = {
             lines: [[
                 { id: 'lbl-used', type: 'custom-text', customText: '时段用量' },
@@ -384,16 +384,16 @@ describe('mochiapi setup migration', () => {
         const migrated = settings.lines[0] ?? [];
         expect(migrated.map(item => item.type)).toEqual([
             'custom-text',
+            'mochiapi-subscription-balance',
+            'custom-text',
             'mochiapi-balance',
             'custom-text',
-            'mochiapi-daily-spend',
-            'custom-text',
-            'total-speed'
+            'mochiapi-daily-spend'
         ]);
         expect(migrated.map(item => item.customText).filter(Boolean)).toEqual([
-            '用户余额',
-            '今日消耗',
-            'TPS'
+            '订阅',
+            '钱包余额',
+            '今日消耗'
         ]);
         expect(migrated.some(item => ['session-usage', 'block-timer', 'reset-timer', 'weekly-usage'].includes(item.type))).toBe(false);
         expect(migrated.some(item => typeof item.customText === 'string' && ['时段用量', '时段', '重置', '周用量'].includes(item.customText))).toBe(false);
