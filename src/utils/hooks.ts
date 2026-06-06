@@ -13,7 +13,10 @@ export interface WidgetHookDef {
     matcher?: string;
 }
 
-const HOOK_TAG = 'ccstatusline-managed';
+const HOOK_TAG = 'mochiapi-statusline-managed';
+// Tags this tool owns and strips on sync: the current tag plus the legacy
+// upstream ccstatusline tag, so old managed hooks are cleaned up one time.
+const MANAGED_HOOK_TAGS = new Set([HOOK_TAG, 'ccstatusline-managed']);
 
 interface HookEntry {
     _tag?: string;
@@ -29,7 +32,7 @@ function hasWidgetHooks(widget: Widget | null): widget is WidgetWithHooks {
 
 function stripManagedHooks(hooks: Record<string, HookEntry[]>): void {
     for (const event of Object.keys(hooks)) {
-        hooks[event] = (hooks[event] ?? []).filter(entry => entry._tag !== HOOK_TAG);
+        hooks[event] = (hooks[event] ?? []).filter(entry => !(entry._tag && MANAGED_HOOK_TAGS.has(entry._tag)));
         if (hooks[event].length === 0) {
             // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
             delete hooks[event];
@@ -63,7 +66,7 @@ export async function syncWidgetHooks(settings: Settings): Promise<void> {
     const claudeSettings = await loadClaudeSettings({ logErrors: false });
     const hooks = (claudeSettings.hooks ?? {}) as Record<string, HookEntry[]>;
 
-    // Remove all ccstatusline-managed hooks
+    // Remove all managed hooks (current + legacy tags)
     stripManagedHooks(hooks);
 
     const statusCommand = await getExistingStatusLine();

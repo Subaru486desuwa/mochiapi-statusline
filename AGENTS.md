@@ -16,7 +16,7 @@ Two runtime modes:
 bun install
 bun run start                     # interactive TUI
 bun run example                   # render a sample payload
-bun run build                     # → dist/ccstatusline.js (Node 14+ target)
+bun run build                     # → dist/mochiapi-statusline.js (Node 14+ target)
 bun test                          # vitest
 bun run lint                      # tsc --noEmit + eslint, no auto-fix
 bun run lint:fix                  # eslint with --fix
@@ -37,7 +37,7 @@ Intentionally small. Touch these when working on Mochi features; everything else
 ## Build process
 
 ```
-bun build src/ccstatusline.ts → dist/ccstatusline.js (Node 14+ target)
+bun build src/mochiapi-statusline.ts → dist/mochiapi-statusline.js (Node 14+ target)
 scripts/replace-version.ts    → substitutes __PACKAGE_VERSION__ from package.json
 ```
 

@@ -14,7 +14,7 @@ import type {
 import { UsageErrorSchema } from './usage-types';
 
 // Cache configuration
-const CACHE_DIR = path.join(os.homedir(), '.cache', 'ccstatusline');
+const CACHE_DIR = path.join(os.homedir(), '.cache', 'mochiapi-statusline');
 const CACHE_FILE = path.join(CACHE_DIR, 'usage.json');
 const LOCK_FILE = path.join(CACHE_DIR, 'usage.lock');
 const CACHE_MAX_AGE = 180; // seconds

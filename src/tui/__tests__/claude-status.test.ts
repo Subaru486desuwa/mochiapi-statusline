@@ -17,7 +17,7 @@ const ORIGINAL_CLAUDE_CONFIG_DIR = process.env.CLAUDE_CONFIG_DIR;
 let testClaudeConfigDir = '';
 
 beforeEach(() => {
-    testClaudeConfigDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ccstatusline-claude-status-'));
+    testClaudeConfigDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mochiapi-statusline-claude-status-'));
     process.env.CLAUDE_CONFIG_DIR = testClaudeConfigDir;
 });
 
@@ -40,14 +40,14 @@ describe('loadClaudeStatusLineState', () => {
         await saveClaudeSettings({
             statusLine: {
                 type: 'command',
-                command: 'npx -y ccstatusline@latest',
+                command: 'npx -y mochiapi-statusline@latest',
                 padding: 0,
                 refreshInterval: 10
             }
         });
 
         await expect(loadClaudeStatusLineState()).resolves.toEqual({
-            existingStatusLine: 'npx -y ccstatusline@latest',
+            existingStatusLine: 'npx -y mochiapi-statusline@latest',
             refreshInterval: 10
         });
     });
@@ -56,13 +56,13 @@ describe('loadClaudeStatusLineState', () => {
         await saveClaudeSettings({
             statusLine: {
                 type: 'command',
-                command: 'npx -y ccstatusline@latest',
+                command: 'npx -y mochiapi-statusline@latest',
                 padding: 0
             }
         });
 
         await expect(loadClaudeStatusLineState()).resolves.toEqual({
-            existingStatusLine: 'npx -y ccstatusline@latest',
+            existingStatusLine: 'npx -y mochiapi-statusline@latest',
             refreshInterval: null
         });
     });

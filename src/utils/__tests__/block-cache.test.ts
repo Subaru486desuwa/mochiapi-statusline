@@ -24,7 +24,7 @@ function getExpectedCachePath(homeDir: string, configDir: string): string {
         .digest('hex')
         .slice(0, 16);
 
-    return path.join(homeDir, '.cache', 'ccstatusline', `block-cache-${configHash}.json`);
+    return path.join(homeDir, '.cache', 'mochiapi-statusline', `block-cache-${configHash}.json`);
 }
 
 describe('Block Cache Functions', () => {
@@ -33,7 +33,7 @@ describe('Block Cache Functions', () => {
 
     beforeEach(() => {
         // Create a temp directory for test isolation
-        tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ccstatusline-test-'));
+        tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mochiapi-statusline-test-'));
         // Mock os.homedir to use temp directory
         vi.spyOn(os, 'homedir').mockReturnValue(tempDir);
         originalClaudeConfigDir = process.env.CLAUDE_CONFIG_DIR;
@@ -210,7 +210,7 @@ describe('getCachedBlockMetrics integration', () => {
     let originalClaudeConfigDir: string | undefined;
 
     beforeEach(() => {
-        tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ccstatusline-test-'));
+        tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mochiapi-statusline-test-'));
         vi.spyOn(os, 'homedir').mockReturnValue(tempDir);
         // Mock CLAUDE_CONFIG_DIR to point to a non-existent directory
         // This ensures getBlockMetrics returns null when cache is expired

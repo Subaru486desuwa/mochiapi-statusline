@@ -23,17 +23,17 @@ const readFile = fs.promises.readFile;
 const writeFile = fs.promises.writeFile;
 const mkdir = fs.promises.mkdir;
 
-export const CCSTATUSLINE_COMMANDS = {
-    NPM: 'npx -y ccstatusline@latest',
-    BUNX: 'bunx -y ccstatusline@latest',
-    SELF_MANAGED: 'ccstatusline'
+export const MOCHIAPI_STATUSLINE_COMMANDS = {
+    NPM: 'npx -y mochiapi-statusline@latest',
+    BUNX: 'bunx -y mochiapi-statusline@latest',
+    SELF_MANAGED: 'mochiapi-statusline'
 };
 
 export function isKnownCommand(command: string): boolean {
-    const prefixes = [CCSTATUSLINE_COMMANDS.NPM, CCSTATUSLINE_COMMANDS.BUNX, CCSTATUSLINE_COMMANDS.SELF_MANAGED];
-    // Also match local development commands (e.g., "bun run /path/to/ccstatusline.ts")
+    const prefixes = [MOCHIAPI_STATUSLINE_COMMANDS.NPM, MOCHIAPI_STATUSLINE_COMMANDS.BUNX, MOCHIAPI_STATUSLINE_COMMANDS.SELF_MANAGED];
+    // Also match local development commands (e.g., "bun run /path/to/mochiapi-statusline.ts")
     return prefixes.some(prefix => command === prefix || command.startsWith(`${prefix} --config `))
-        || /(?:^|[\s"'\\/])ccstatusline\.ts(?=$|[\s"'])/.test(command);
+        || /(?:^|[\s"'\\/])mochiapi-statusline\.ts(?=$|[\s"'])/.test(command);
 }
 
 function needsQuoting(filePath: string): boolean {
@@ -288,8 +288,8 @@ export async function installStatusLine(useBunx = false, supportsRefreshInterval
     }
 
     const baseCommand = useBunx
-        ? CCSTATUSLINE_COMMANDS.BUNX
-        : CCSTATUSLINE_COMMANDS.NPM;
+        ? MOCHIAPI_STATUSLINE_COMMANDS.BUNX
+        : MOCHIAPI_STATUSLINE_COMMANDS.NPM;
 
     // Update settings with our status line (confirmation already handled in TUI)
     const existingRefreshInterval = settings.statusLine?.refreshInterval;

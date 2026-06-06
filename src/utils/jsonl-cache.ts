@@ -35,7 +35,7 @@ export function getBlockCachePath(configDir = getClaudeConfigDir()): string {
     return path.join(
         os.homedir(),
         '.cache',
-        'ccstatusline',
+        'mochiapi-statusline',
         `block-cache-${configHash}.json`
     );
 }

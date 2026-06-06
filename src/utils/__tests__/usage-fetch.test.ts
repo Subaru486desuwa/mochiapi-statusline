@@ -45,7 +45,7 @@ interface ProbeOptions {
 }
 
 function createProbeHarness() {
-    const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'ccstatusline-usage-test-'));
+    const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'mochiapi-statusline-usage-test-'));
     const probeScriptPath = path.join(tempRoot, 'probe-usage.mjs');
     const usageModulePath = fileURLToPath(new URL('../usage.ts', import.meta.url));
 
@@ -134,8 +134,8 @@ https.request = (...args) => {
 
 const { fetchUsageData } = await import(${JSON.stringify(usageModulePath)});
 
-const lockFile = path.join(os.homedir(), '.cache', 'ccstatusline', 'usage.lock');
-const cacheFile = path.join(os.homedir(), '.cache', 'ccstatusline', 'usage.json');
+const lockFile = path.join(os.homedir(), '.cache', 'mochiapi-statusline', 'usage.lock');
+const cacheFile = path.join(os.homedir(), '.cache', 'mochiapi-statusline', 'usage.json');
 const nowMs = Number(process.env.TEST_NOW_MS || Date.now());
 const requiredFields = JSON.parse(process.env.TEST_REQUIRED_FIELDS_JSON || '[]');
 Date.now = () => nowMs;
@@ -683,7 +683,7 @@ describe('fetchUsageData error handling', () => {
 
         try {
             const home = harness.createTokenHome('legacy-lock');
-            const lockDir = path.join(home.home, '.cache', 'ccstatusline');
+            const lockDir = path.join(home.home, '.cache', 'mochiapi-statusline');
             const lockFile = path.join(lockDir, 'usage.lock');
 
             fs.mkdirSync(lockDir, { recursive: true });

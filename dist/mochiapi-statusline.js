@@ -52434,7 +52434,7 @@ var init_migrations = __esm(() => {
         copyV1Fields(data, migrated);
         migrated.version = 2;
         migrated.updatemessage = {
-          message: "ccstatusline updated to v2.0.0, launch tui to use new settings",
+          message: "MochiAPI Statusline updated to v2.0.0, launch tui to use new settings",
           remaining: 12
         };
         return migrated;
@@ -52448,7 +52448,7 @@ var init_migrations = __esm(() => {
         const migrated = { ...data };
         migrated.version = 3;
         migrated.updatemessage = {
-          message: "ccstatusline updated to v2.0.2, 5hr block timer widget added",
+          message: "MochiAPI Statusline updated to v2.0.2, 5hr block timer widget added",
           remaining: 12
         };
         return migrated;
@@ -53680,7 +53680,7 @@ import { createHash } from "node:crypto";
 import os3 from "node:os";
 import path from "node:path";
 function getCacheDir(deps) {
-  return path.join(deps.getHomedir(), ".cache", "ccstatusline");
+  return path.join(deps.getHomedir(), ".cache", "mochiapi-statusline");
 }
 function getGitReviewCacheDir(deps) {
   return path.join(getCacheDir(deps), "git-review");
@@ -56075,7 +56075,7 @@ function getTerminalWidth() {
 function canDetectTerminalWidth() {
   return probeTerminalWidth() !== null;
 }
-var __dirname = "/Volumes/ExtremeSSD/Developer/mochiapi/statusline/src/utils", PACKAGE_VERSION = "0.1.4";
+var __dirname = "/Volumes/ExtremeSSD/Developer/mochiapi/statusline/src/utils", PACKAGE_VERSION = "0.2.0";
 var init_terminal = () => {};
 
 // src/utils/renderer.ts
@@ -59721,7 +59721,7 @@ var init_usage_fetch = __esm(async () => {
   init_zod();
   init_usage_types();
   await init_claude_settings();
-  CACHE_DIR = path3.join(os4.homedir(), ".cache", "ccstatusline");
+  CACHE_DIR = path3.join(os4.homedir(), ".cache", "mochiapi-statusline");
   CACHE_FILE = path3.join(CACHE_DIR, "usage.json");
   LOCK_FILE = path3.join(CACHE_DIR, "usage.lock");
   MACOS_SECURITY_DUMP_MAX_BUFFER = 8 * 1024 * 1024;
@@ -62434,7 +62434,7 @@ function normalizeConfigDir(configDir) {
 function getBlockCachePath(configDir = getClaudeConfigDir()) {
   const normalizedConfigDir = normalizeConfigDir(configDir);
   const configHash = createHash2("sha256").update(normalizedConfigDir).digest("hex").slice(0, 16);
-  return path5.join(os5.homedir(), ".cache", "ccstatusline", `block-cache-${configHash}.json`);
+  return path5.join(os5.homedir(), ".cache", "mochiapi-statusline", `block-cache-${configHash}.json`);
 }
 function readBlockCache(expectedConfigDir) {
   try {
@@ -67876,7 +67876,7 @@ function hasWidgetHooks(widget) {
 }
 function stripManagedHooks(hooks) {
   for (const event of Object.keys(hooks)) {
-    hooks[event] = (hooks[event] ?? []).filter((entry) => entry._tag !== HOOK_TAG);
+    hooks[event] = (hooks[event] ?? []).filter((entry) => !(entry._tag && MANAGED_HOOK_TAGS.has(entry._tag)));
     if (hooks[event].length === 0) {
       delete hooks[event];
     }
@@ -67935,12 +67935,13 @@ async function removeManagedHooks() {
   claudeSettings.hooks = Object.keys(hooks).length > 0 ? hooks : undefined;
   await saveClaudeSettings(claudeSettings);
 }
-var HOOK_TAG = "ccstatusline-managed";
+var HOOK_TAG = "mochiapi-statusline-managed", MANAGED_HOOK_TAGS;
 var init_hooks = __esm(async () => {
   await __promiseAll([
     init_claude_settings(),
     init_widgets2()
   ]);
+  MANAGED_HOOK_TAGS = new Set([HOOK_TAG, "ccstatusline-managed"]);
 });
 
 // src/utils/config.ts
@@ -67999,8 +68000,23 @@ async function recoverWithDefaults(paths) {
   await backupBadSettings(paths);
   return await writeDefaultSettings(paths);
 }
+async function migrateLegacyConfigIfNeeded(paths) {
+  if (isCustomConfigPath())
+    return;
+  if (fs10.existsSync(paths.settingsPath) || !fs10.existsSync(LEGACY_SETTINGS_PATH))
+    return;
+  try {
+    const legacy = await readFile3(LEGACY_SETTINGS_PATH, "utf-8");
+    await mkdir(paths.configDir, { recursive: true });
+    await writeFile(paths.settingsPath, legacy, "utf-8");
+    console.error(`Migrated settings from ${LEGACY_SETTINGS_PATH} to ${paths.settingsPath}`);
+  } catch (error48) {
+    console.error("Failed to migrate legacy ccstatusline settings:", error48);
+  }
+}
 async function loadSettings() {
   const paths = getSettingsPaths();
+  await migrateLegacyConfigIfNeeded(paths);
   try {
     if (!fs10.existsSync(paths.settingsPath))
       return await writeDefaultSettings(paths);
@@ -68051,7 +68067,7 @@ async function saveSettings(settings) {
     await syncWidgetHooks2(settings);
   } catch {}
 }
-var readFile3, writeFile, mkdir, DEFAULT_SETTINGS_PATH, settingsPath;
+var readFile3, writeFile, mkdir, DEFAULT_SETTINGS_PATH, LEGACY_SETTINGS_PATH, settingsPath;
 var init_config = __esm(async () => {
   init_Settings();
   init_migrations();
@@ -68059,7 +68075,8 @@ var init_config = __esm(async () => {
   readFile3 = fs10.promises.readFile;
   writeFile = fs10.promises.writeFile;
   mkdir = fs10.promises.mkdir;
-  DEFAULT_SETTINGS_PATH = path7.join(os8.homedir(), ".config", "ccstatusline", "settings.json");
+  DEFAULT_SETTINGS_PATH = path7.join(os8.homedir(), ".config", "mochiapi-statusline", "settings.json");
+  LEGACY_SETTINGS_PATH = path7.join(os8.homedir(), ".config", "ccstatusline", "settings.json");
   settingsPath = DEFAULT_SETTINGS_PATH;
 });
 
@@ -68069,8 +68086,8 @@ import * as fs11 from "fs";
 import * as os9 from "os";
 import * as path8 from "path";
 function isKnownCommand(command) {
-  const prefixes = [CCSTATUSLINE_COMMANDS.NPM, CCSTATUSLINE_COMMANDS.BUNX, CCSTATUSLINE_COMMANDS.SELF_MANAGED];
-  return prefixes.some((prefix) => command === prefix || command.startsWith(`${prefix} --config `)) || /(?:^|[\s"'\\/])ccstatusline\.ts(?=$|[\s"'])/.test(command);
+  const prefixes = [MOCHIAPI_STATUSLINE_COMMANDS.NPM, MOCHIAPI_STATUSLINE_COMMANDS.BUNX, MOCHIAPI_STATUSLINE_COMMANDS.SELF_MANAGED];
+  return prefixes.some((prefix) => command === prefix || command.startsWith(`${prefix} --config `)) || /(?:^|[\s"'\\/])mochiapi-statusline\.ts(?=$|[\s"'])/.test(command);
 }
 function needsQuoting(filePath) {
   if (process.platform === "win32") {
@@ -68248,7 +68265,7 @@ async function installStatusLine(useBunx = false, supportsRefreshInterval = fals
     console.error(`Warning: Could not read existing Claude settings. A backup exists at ${backupPath ?? fallbackBackupPath}.`);
     settings = {};
   }
-  const baseCommand = useBunx ? CCSTATUSLINE_COMMANDS.BUNX : CCSTATUSLINE_COMMANDS.NPM;
+  const baseCommand = useBunx ? MOCHIAPI_STATUSLINE_COMMANDS.BUNX : MOCHIAPI_STATUSLINE_COMMANDS.NPM;
   const existingRefreshInterval = settings.statusLine?.refreshInterval;
   settings.statusLine = {
     type: "command",
@@ -68359,7 +68376,7 @@ function getVoiceConfig(cwd2 = process.cwd()) {
   }
   return anyFileExisted ? { enabled: false } : null;
 }
-var readFile4, writeFile2, mkdir2, CCSTATUSLINE_COMMANDS, VoiceConfigSchema;
+var readFile4, writeFile2, mkdir2, MOCHIAPI_STATUSLINE_COMMANDS, VoiceConfigSchema;
 var init_claude_settings = __esm(async () => {
   init_zod();
   init_Settings();
@@ -68367,10 +68384,10 @@ var init_claude_settings = __esm(async () => {
   readFile4 = fs11.promises.readFile;
   writeFile2 = fs11.promises.writeFile;
   mkdir2 = fs11.promises.mkdir;
-  CCSTATUSLINE_COMMANDS = {
-    NPM: "npx -y ccstatusline@latest",
-    BUNX: "bunx -y ccstatusline@latest",
-    SELF_MANAGED: "ccstatusline"
+  MOCHIAPI_STATUSLINE_COMMANDS = {
+    NPM: "npx -y mochiapi-statusline@latest",
+    BUNX: "bunx -y mochiapi-statusline@latest",
+    SELF_MANAGED: "mochiapi-statusline"
   };
   VoiceConfigSchema = exports_external.object({ enabled: exports_external.boolean().optional() });
 });
@@ -68911,18 +68928,18 @@ async function runMochiApiSetup() {
       const { result: result2, backupPath } = await writeStatuslineSettings(opts);
       const ccPath = getConfigPath();
       if (result2 === "created") {
-        console.log(`✓ ccstatusline layout (mochi 2-line) → ${ccPath}`);
+        console.log(`✓ MochiAPI Statusline layout (mochi 2-line) → ${ccPath}`);
       } else if (result2 === "replaced") {
-        console.log(`✓ ccstatusline layout reset to mochi 2-line → ${ccPath}`);
+        console.log(`✓ MochiAPI Statusline layout reset to mochi 2-line → ${ccPath}`);
         if (backupPath)
           console.log(`  previous file backed up → ${backupPath}`);
       } else if (result2 === "appended") {
         console.log(`✓ Mochi balance widget appended → ${ccPath}`);
       } else {
-        console.log(`• ccstatusline settings.json already has the Mochi widget → ${ccPath}`);
+        console.log(`• MochiAPI Statusline settings.json already has the Mochi widget → ${ccPath}`);
       }
     } catch (err) {
-      console.error(`✗ ccstatusline settings.json write failed: ${err instanceof Error ? err.message : String(err)}`);
+      console.error(`✗ MochiAPI Statusline settings.json write failed: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
   if (!opts.skipClaudeWire) {
@@ -68952,7 +68969,7 @@ var init_mochiapi_setup = __esm(async () => {
   __mochiApiSetupTest = { migrateMochiBillingIntoExistingLines };
 });
 
-// src/ccstatusline.ts
+// src/mochiapi-statusline.ts
 init_source();
 
 // src/tui/App.tsx
@@ -69426,7 +69443,7 @@ async function installPowerlineFonts() {
     if (!fs12.existsSync(fontDir)) {
       fs12.mkdirSync(fontDir, { recursive: true });
     }
-    const tempDir = path9.join(os11.tmpdir(), `ccstatusline-powerline-fonts-${Date.now()}`);
+    const tempDir = path9.join(os11.tmpdir(), `mochiapi-statusline-powerline-fonts-${Date.now()}`);
     try {
       if (fs12.existsSync(tempDir)) {
         fs12.rmSync(tempDir, { recursive: true, force: true });
@@ -71195,7 +71212,7 @@ var InstallMenu = ({
     children: [
       /* @__PURE__ */ jsx_dev_runtime14.jsxDEV(Text, {
         bold: true,
-        children: "Install ccstatusline to Claude Code"
+        children: "Install MochiAPI Statusline to Claude Code"
       }, undefined, false, undefined, this),
       existingStatusLine && /* @__PURE__ */ jsx_dev_runtime14.jsxDEV(Box_default, {
         marginBottom: 1,
@@ -72495,13 +72512,13 @@ var MainMenu = ({
       {
         label: "\uD83D\uDD0C Uninstall from Claude Code",
         value: "install",
-        description: "Remove ccstatusline from your Claude Code settings"
+        description: "Remove MochiAPI Statusline from your Claude Code settings"
       }
     ] : [
       {
         label: "\uD83D\uDCE6 Install to Claude Code",
         value: "install",
-        description: "Add ccstatusline to your Claude Code settings for automatic status line rendering"
+        description: "Add MochiAPI Statusline to your Claude Code settings for automatic status line rendering"
       }
     ]
   ];
@@ -72515,9 +72532,9 @@ var MainMenu = ({
       value: "exit",
       description: "Exit without saving your changes"
     }, "-", {
-      label: "⭐ Like ccstatusline? Star us on GitHub",
+      label: "⭐ Like MochiAPI Statusline? Star us on GitHub",
       value: "starGithub",
-      description: "Open the ccstatusline GitHub repository in your browser so you can star the project"
+      description: "Open the MochiAPI Statusline GitHub repository in your browser so you can star the project"
     });
   } else {
     menuItems.push({
@@ -72525,9 +72542,9 @@ var MainMenu = ({
       value: "exit",
       description: "Exit the configuration tool"
     }, "-", {
-      label: "⭐ Like ccstatusline? Star us on GitHub",
+      label: "⭐ Like MochiAPI Statusline? Star us on GitHub",
       value: "starGithub",
-      description: "Open the ccstatusline GitHub repository in your browser so you can star the project"
+      description: "Open the MochiAPI Statusline GitHub repository in your browser so you can star the project"
     });
   }
   const showTruncationWarning = previewIsTruncated && settings?.flexMode === "full-minus-40";
@@ -74231,7 +74248,7 @@ var TerminalWidthMenu = ({
 };
 // src/tui/App.tsx
 var jsx_dev_runtime25 = __toESM(require_jsx_dev_runtime(), 1);
-var GITHUB_REPO_URL = "https://github.com/sirmalloc/ccstatusline";
+var GITHUB_REPO_URL = "https://github.com/Subaru486desuwa/mochiapi-statusline";
 function getConfirmCancelScreen(confirmDialog) {
   return confirmDialog?.cancelScreen ?? "main";
 }
@@ -74328,10 +74345,10 @@ var App2 = () => {
 A status line is already configured: "${existing}"
 Replace it with ${command}?`;
       } else if (isAlreadyInstalled) {
-        message = `ccstatusline is already installed in ${getClaudeSettingsPath()}
+        message = `MochiAPI Statusline is already installed in${getClaudeSettingsPath()}
 Update it with ${command}?`;
       } else {
-        message = `This will modify ${getClaudeSettingsPath()} to add ccstatusline with ${displayName}.
+        message = `This will modify ${getClaudeSettingsPath()} to add MochiAPI Statusline with ${displayName}.
 Continue?`;
       }
       setConfirmDialog({
@@ -74352,11 +74369,11 @@ Continue?`;
   }, [supportsRefreshInterval]);
   const handleNpxInstall = import_react50.useCallback(() => {
     setMenuSelections((prev) => ({ ...prev, install: 0 }));
-    handleInstallSelection(CCSTATUSLINE_COMMANDS.NPM, "npx", false);
+    handleInstallSelection(MOCHIAPI_STATUSLINE_COMMANDS.NPM, "npx", false);
   }, [handleInstallSelection]);
   const handleBunxInstall = import_react50.useCallback(() => {
     setMenuSelections((prev) => ({ ...prev, install: 1 }));
-    handleInstallSelection(CCSTATUSLINE_COMMANDS.BUNX, "bunx", true);
+    handleInstallSelection(MOCHIAPI_STATUSLINE_COMMANDS.BUNX, "bunx", true);
   }, [handleInstallSelection]);
   const handleInstallMenuCancel = import_react50.useCallback(() => {
     setMenuSelections(clearInstallMenuSelection);
@@ -74370,7 +74387,7 @@ Continue?`;
   const handleInstallUninstall = () => {
     if (isClaudeInstalled) {
       setConfirmDialog({
-        message: `This will remove ccstatusline from ${getClaudeSettingsPath()}. Continue?`,
+        message: `This will remove MochiAPI Statusline from${getClaudeSettingsPath()}. Continue?`,
         action: async () => {
           await uninstallStatusLine();
           setIsClaudeInstalled(false);
@@ -74410,7 +74427,7 @@ Continue?`;
         break;
       case "starGithub":
         setConfirmDialog({
-          message: `Open the ccstatusline GitHub repository in your browser?
+          message: `Open the MochiAPI Statusline GitHub repository in your browser?
 
 ${GITHUB_REPO_URL}`,
           action: () => {
@@ -74466,7 +74483,7 @@ ${GITHUB_REPO_URL}`,
             bold: true,
             children: /* @__PURE__ */ jsx_dev_runtime25.jsxDEV(dist_default5, {
               name: "retro",
-              children: "CCStatusline Configuration"
+              children: "MochiAPI Statusline"
             }, undefined, false, undefined, this)
           }, undefined, false, undefined, this),
           /* @__PURE__ */ jsx_dev_runtime25.jsxDEV(Text, {
@@ -74749,7 +74766,7 @@ var StatusJSONSchema = exports_external.looseObject({
   }).nullable().optional()
 });
 
-// src/ccstatusline.ts
+// src/mochiapi-statusline.ts
 init_ansi();
 init_colors();
 
@@ -74803,7 +74820,7 @@ function detectCompaction(currentCtxPct, state, options = DEFAULT_DROP_THRESHOLD
   };
 }
 function getCacheDir2() {
-  return path10.join(os13.homedir(), ".cache", "ccstatusline", "compaction");
+  return path10.join(os13.homedir(), ".cache", "mochiapi-statusline", "compaction");
 }
 function sanitizeSessionId(sessionId) {
   const sanitized = sessionId.replace(/[^a-zA-Z0-9_-]/g, "_");
@@ -74859,7 +74876,7 @@ function saveCompactionState(sessionId, state) {
   }
 }
 
-// src/ccstatusline.ts
+// src/mochiapi-statusline.ts
 init_context_percentage();
 await init_config();
 
@@ -74873,7 +74890,7 @@ import * as os14 from "os";
 import * as path11 from "path";
 var EMPTY = { totalInvocations: 0, uniqueSkills: [], lastSkill: null };
 function getSkillsDir() {
-  return path11.join(os14.homedir(), ".cache", "ccstatusline", "skills");
+  return path11.join(os14.homedir(), ".cache", "mochiapi-statusline", "skills");
 }
 function getSkillsFilePath(sessionId) {
   return path11.join(getSkillsDir(), `skills-${sessionId}.jsonl`);
@@ -74950,7 +74967,7 @@ function handleHookInput(input) {
   } catch {}
 }
 
-// src/ccstatusline.ts
+// src/mochiapi-statusline.ts
 await init_jsonl();
 await init_renderer2();
 // src/utils/usage-prefetch.ts
@@ -75056,7 +75073,7 @@ async function prefetchUsageDataIfNeeded(lines, data) {
   return fetchUsageData({ requiredFields: getRequiredUsageFields(perModelRequirements) });
 }
 
-// src/ccstatusline.ts
+// src/mochiapi-statusline.ts
 function hasSessionDurationInStatusJson(data) {
   const durationMs = data.cost?.total_duration_ms;
   return typeof durationMs === "number" && Number.isFinite(durationMs) && durationMs >= 0;

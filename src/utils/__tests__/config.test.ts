@@ -18,7 +18,7 @@ import {
     type Settings
 } from '../../types/Settings';
 
-const MOCK_HOME_DIR = '/tmp/ccstatusline-config-test-home';
+const MOCK_HOME_DIR = '/tmp/mochiapi-statusline-config-test-home';
 const ORIGINAL_CLAUDE_CONFIG_DIR = process.env.CLAUDE_CONFIG_DIR;
 
 let loadSettings: () => Promise<Settings>;
@@ -27,7 +27,7 @@ let initConfigPath: (filePath?: string) => void;
 let consoleErrorSpy: MockInstance<typeof console.error>;
 
 function getSettingsPaths(): { configDir: string; settingsPath: string; backupPath: string } {
-    const configDir = path.join(MOCK_HOME_DIR, '.config', 'ccstatusline');
+    const configDir = path.join(MOCK_HOME_DIR, '.config', 'mochiapi-statusline');
     return {
         configDir,
         settingsPath: path.join(configDir, 'settings.json'),

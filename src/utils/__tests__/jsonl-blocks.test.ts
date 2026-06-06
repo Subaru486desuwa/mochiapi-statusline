@@ -34,7 +34,7 @@ describe('jsonl block metrics integration', () => {
     let originalClaudeConfigDir: string | undefined;
 
     beforeEach(() => {
-        tempClaudeDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ccstatusline-jsonl-blocks-'));
+        tempClaudeDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mochiapi-statusline-jsonl-blocks-'));
         originalClaudeConfigDir = process.env.CLAUDE_CONFIG_DIR;
         process.env.CLAUDE_CONFIG_DIR = tempClaudeDir;
     });

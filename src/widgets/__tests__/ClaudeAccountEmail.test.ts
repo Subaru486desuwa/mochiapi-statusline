@@ -45,7 +45,7 @@ function render(options: {
 describe('ClaudeAccountEmailWidget', () => {
     beforeEach(() => {
         vi.restoreAllMocks();
-        tempHomeDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ccstatusline-claude-account-email-'));
+        tempHomeDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mochiapi-statusline-claude-account-email-'));
     });
 
     afterEach(() => {

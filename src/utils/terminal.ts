@@ -39,7 +39,7 @@ function probeTerminalWidth(): number | null {
         return null;
     }
 
-    // Claude Code can spawn ccstatusline with piped stdio, leaving the immediate
+    // Claude Code can spawn mochiapi-statusline with piped stdio, leaving the immediate
     // parent process without a controlling TTY. Walk up a few ancestors until we
     // find the shell process that owns the real PTY.
     let pid = process.pid;

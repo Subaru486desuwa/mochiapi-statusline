@@ -22,7 +22,7 @@ function getClaudeSettingsPath(): string {
 
 describe('syncWidgetHooks', () => {
     beforeEach(() => {
-        testClaudeConfigDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ccstatusline-hooks-'));
+        testClaudeConfigDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mochiapi-statusline-hooks-'));
         process.env.CLAUDE_CONFIG_DIR = testClaudeConfigDir;
     });
 
@@ -46,7 +46,7 @@ describe('syncWidgetHooks', () => {
             hooks: {
                 PreToolUse: [
                     {
-                        _tag: 'ccstatusline-managed',
+                        _tag: 'mochiapi-statusline-managed',
                         matcher: 'Skill',
                         hooks: [{ type: 'command', command: 'old-command --hook' }]
                     },
@@ -57,7 +57,7 @@ describe('syncWidgetHooks', () => {
                 ],
                 UserPromptSubmit: [
                     {
-                        _tag: 'ccstatusline-managed',
+                        _tag: 'mochiapi-statusline-managed',
                         hooks: [{ type: 'command', command: 'old-command --hook' }]
                     }
                 ]

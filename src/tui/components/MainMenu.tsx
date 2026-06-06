@@ -86,14 +86,14 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                 {
                     label: '🔌 Uninstall from Claude Code',
                     value: 'install' as MainMenuOption,
-                    description: 'Remove ccstatusline from your Claude Code settings'
+                    description: 'Remove MochiAPI Statusline from your Claude Code settings'
                 }
             ]
             : [
                 {
                     label: '📦 Install to Claude Code',
                     value: 'install' as MainMenuOption,
-                    description: 'Add ccstatusline to your Claude Code settings for automatic status line rendering'
+                    description: 'Add MochiAPI Statusline to your Claude Code settings for automatic status line rendering'
                 }
             ]
         )
@@ -113,9 +113,9 @@ export const MainMenu: React.FC<MainMenuProps> = ({
             },
             '-' as const,
             {
-                label: '⭐ Like ccstatusline? Star us on GitHub',
+                label: '⭐ Like MochiAPI Statusline? Star us on GitHub',
                 value: 'starGithub',
-                description: 'Open the ccstatusline GitHub repository in your browser so you can star the project'
+                description: 'Open the MochiAPI Statusline GitHub repository in your browser so you can star the project'
             }
         );
     } else {
@@ -127,9 +127,9 @@ export const MainMenu: React.FC<MainMenuProps> = ({
             },
             '-' as const,
             {
-                label: '⭐ Like ccstatusline? Star us on GitHub',
+                label: '⭐ Like MochiAPI Statusline? Star us on GitHub',
                 value: 'starGithub',
-                description: 'Open the ccstatusline GitHub repository in your browser so you can star the project'
+                description: 'Open the MochiAPI Statusline GitHub repository in your browser so you can star the project'
             }
         );
     }

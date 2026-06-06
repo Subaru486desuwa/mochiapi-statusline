@@ -35,7 +35,7 @@ bash / zsh / fish / PowerShell 7+ / cmd.exe 都能跑，`&&` 把装包和 setup 
 
 1. token + base URL → `~/.config/mochiapi-statusline/config.json`（Windows 是 `%APPDATA%\mochiapi-statusline\config.json`）
 2. 探测一次 balance 接口，确认 token 有效
-3. 把推荐的 **Mochi 两行 Powerline 布局**写入 `~/.config/ccstatusline/settings.json`（已有布局会把 Mochi 计费行追加进去）
+3. 把推荐的 **Mochi 两行 Powerline 布局**写入 `~/.config/mochiapi-statusline/settings.json`（已有布局会把 Mochi 计费行追加进去）
 4. 把 Claude Code 的 `~/.claude/settings.json` 里 `statusLine.command` 指向 `mochiapi-statusline`
 
 开一个新的 Claude Code 会话，状态栏就有了。
@@ -46,7 +46,7 @@ bash / zsh / fish / PowerShell 7+ / cmd.exe 都能跑，`&&` 把装包和 setup 
 > winget install DEVCOM.JetBrainsMonoNerdFont
 > ```
 
-`dist/ccstatusline.js` 预构建产物直接打进 npm tarball，包不声明 `prepare` / `postinstall`，安装时不会跑本地构建，bundle 好的 binary 直接落地。
+`dist/mochiapi-statusline.js` 预构建产物直接打进 npm tarball，包不声明 `prepare` / `postinstall`，安装时不会跑本地构建，bundle 好的 binary 直接落地。
 
 ### 备用安装源
 
@@ -96,7 +96,7 @@ mochiapi-statusline --mochiapi-setup
 MOCHIAPI_TOKEN=sk-xxxx MOCHIAPI_BASE_URL=https://mochiapi.com \
   mochiapi-statusline --mochiapi-setup
 
-# 只写 mochi 配置，不动 ccstatusline / Claude Code 设置
+# 只写 mochi 配置，不动 mochiapi-statusline / Claude Code 设置
 mochiapi-statusline --mochiapi-setup --skip-statusline --skip-claude-wire
 
 # 手动刷一次余额缓存（后台每 30 秒也会自动刷）
@@ -122,7 +122,7 @@ npm uninstall -g mochiapi-statusline
 |---|---|---|
 | MochiAPI token + baseUrl | `~/.config/mochiapi-statusline/config.json` | `%APPDATA%\mochiapi-statusline\config.json` |
 | 余额缓存 | `~/.cache/mochiapi-statusline/balance.json` | `%LOCALAPPDATA%\mochiapi-statusline\cache\balance.json` |
-| 状态栏布局 | `~/.config/ccstatusline/settings.json` | `%USERPROFILE%\.config\ccstatusline\settings.json` |
+| 状态栏布局 | `~/.config/mochiapi-statusline/settings.json` | `%USERPROFILE%\.config\mochiapi-statusline\settings.json` |
 | Claude Code | `~/.claude/settings.json` | `%USERPROFILE%\.claude\settings.json` |
 
 token 配置和布局配置是**两个不同的文件**：改鉴权动第一个，改显示哪些 widget 动第二个（或者跑 TUI）。

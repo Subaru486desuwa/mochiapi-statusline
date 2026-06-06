@@ -14,7 +14,7 @@ import {
 
 import { DEFAULT_SETTINGS } from '../../types/Settings';
 import {
-    CCSTATUSLINE_COMMANDS,
+    MOCHIAPI_STATUSLINE_COMMANDS,
     getClaudeCodeVersion,
     getClaudeJsonPath,
     getClaudeSettingsPath,
@@ -56,7 +56,7 @@ function writeRawClaudeSettings(content: string): void {
 }
 
 beforeEach(() => {
-    testClaudeConfigDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ccstatusline-claude-settings-'));
+    testClaudeConfigDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mochiapi-statusline-claude-settings-'));
     process.env.CLAUDE_CONFIG_DIR = testClaudeConfigDir;
     initConfigPath();
 });
@@ -78,31 +78,31 @@ afterAll(() => {
 
 describe('isKnownCommand', () => {
     it('should match exact NPM command', () => {
-        expect(isKnownCommand(CCSTATUSLINE_COMMANDS.NPM)).toBe(true);
+        expect(isKnownCommand(MOCHIAPI_STATUSLINE_COMMANDS.NPM)).toBe(true);
     });
 
     it('should match exact BUNX command', () => {
-        expect(isKnownCommand(CCSTATUSLINE_COMMANDS.BUNX)).toBe(true);
+        expect(isKnownCommand(MOCHIAPI_STATUSLINE_COMMANDS.BUNX)).toBe(true);
     });
 
     it('should match exact SELF_MANAGED command', () => {
-        expect(isKnownCommand(CCSTATUSLINE_COMMANDS.SELF_MANAGED)).toBe(true);
+        expect(isKnownCommand(MOCHIAPI_STATUSLINE_COMMANDS.SELF_MANAGED)).toBe(true);
     });
 
     it('should match NPM command with --config and simple path', () => {
-        expect(isKnownCommand(`${CCSTATUSLINE_COMMANDS.NPM} --config /tmp/settings.json`)).toBe(true);
+        expect(isKnownCommand(`${MOCHIAPI_STATUSLINE_COMMANDS.NPM} --config /tmp/settings.json`)).toBe(true);
     });
 
     it('should match BUNX command with --config and quoted path with spaces', () => {
-        expect(isKnownCommand(`${CCSTATUSLINE_COMMANDS.BUNX} --config '/my path/settings.json'`)).toBe(true);
+        expect(isKnownCommand(`${MOCHIAPI_STATUSLINE_COMMANDS.BUNX} --config '/my path/settings.json'`)).toBe(true);
     });
 
     it('should match command with --config and quoted path with parens', () => {
-        expect(isKnownCommand(`${CCSTATUSLINE_COMMANDS.NPM} --config '/my(path)/settings.json'`)).toBe(true);
+        expect(isKnownCommand(`${MOCHIAPI_STATUSLINE_COMMANDS.NPM} --config '/my(path)/settings.json'`)).toBe(true);
     });
 
     it('should match command with --config and double-quoted Windows path', () => {
-        expect(isKnownCommand(`${CCSTATUSLINE_COMMANDS.NPM} --config "C:\\Users\\Alice\\My Settings\\settings.json"`)).toBe(true);
+        expect(isKnownCommand(`${MOCHIAPI_STATUSLINE_COMMANDS.NPM} --config "C:\\Users\\Alice\\My Settings\\settings.json"`)).toBe(true);
     });
 
     it('should not match unknown commands', () => {
@@ -118,15 +118,15 @@ describe('isKnownCommand', () => {
     });
 
     it('should not match prefix that is a substring', () => {
-        expect(isKnownCommand('npx -y ccstatusline@latestFOO')).toBe(false);
+        expect(isKnownCommand('npx -y mochiapi-statusline@latestFOO')).toBe(false);
     });
 
-    it('should match command containing ccstatusline.ts', () => {
-        expect(isKnownCommand('bun run /home/user/ccstatusline/src/ccstatusline.ts')).toBe(true);
+    it('should match command containing mochiapi-statusline.ts', () => {
+        expect(isKnownCommand('bun run /home/user/ccstatusline/src/mochiapi-statusline.ts')).toBe(true);
     });
 
-    it('should match command containing a quoted ccstatusline.ts path', () => {
-        expect(isKnownCommand('bun run "/Users/Jane Doe/ccstatusline/src/ccstatusline.ts"')).toBe(true);
+    it('should match command containing a quoted mochiapi-statusline.ts path', () => {
+        expect(isKnownCommand('bun run "/Users/Jane Doe/ccstatusline/src/mochiapi-statusline.ts"')).toBe(true);
     });
 });
 
@@ -154,41 +154,41 @@ describe('buildCommand via installStatusLine', () => {
     it('should use base command when no custom config path', async () => {
         initConfigPath();
         await installStatusLine(false);
-        expect(readInstalledCommand()).toBe(CCSTATUSLINE_COMMANDS.NPM);
+        expect(readInstalledCommand()).toBe(MOCHIAPI_STATUSLINE_COMMANDS.NPM);
     });
 
     it('should append --config with simple path (no quoting needed)', async () => {
         initConfigPath('/tmp/settings.json');
         await installStatusLine(false);
-        expect(readInstalledCommand()).toBe(`${CCSTATUSLINE_COMMANDS.NPM} --config /tmp/settings.json`);
+        expect(readInstalledCommand()).toBe(`${MOCHIAPI_STATUSLINE_COMMANDS.NPM} --config /tmp/settings.json`);
     });
 
     it('should quote path with spaces', async () => {
         initConfigPath('/my path/settings.json');
         await installStatusLine(false);
-        expect(readInstalledCommand()).toBe(`${CCSTATUSLINE_COMMANDS.NPM} --config '/my path/settings.json'`);
+        expect(readInstalledCommand()).toBe(`${MOCHIAPI_STATUSLINE_COMMANDS.NPM} --config '/my path/settings.json'`);
     });
 
     it('should quote path with parentheses', async () => {
         initConfigPath('/my(path)/settings.json');
         await installStatusLine(false);
-        expect(readInstalledCommand()).toBe(`${CCSTATUSLINE_COMMANDS.NPM} --config '/my(path)/settings.json'`);
+        expect(readInstalledCommand()).toBe(`${MOCHIAPI_STATUSLINE_COMMANDS.NPM} --config '/my(path)/settings.json'`);
     });
 
     it('should escape embedded single quotes in path', async () => {
         initConfigPath('/my\'path/settings.json');
         await installStatusLine(false);
-        expect(readInstalledCommand()).toBe(`${CCSTATUSLINE_COMMANDS.NPM} --config '/my'\\''path/settings.json'`);
+        expect(readInstalledCommand()).toBe(`${MOCHIAPI_STATUSLINE_COMMANDS.NPM} --config '/my'\\''path/settings.json'`);
     });
 
     it('should use bunx command when useBunx is true', async () => {
         initConfigPath('/my path/settings.json');
         await installStatusLine(true);
-        expect(readInstalledCommand()).toBe(`${CCSTATUSLINE_COMMANDS.BUNX} --config '/my path/settings.json'`);
+        expect(readInstalledCommand()).toBe(`${MOCHIAPI_STATUSLINE_COMMANDS.BUNX} --config '/my path/settings.json'`);
     });
 
     it('should sync hooks on install when settings include hook-enabled widgets', async () => {
-        const configPath = path.join(testClaudeConfigDir, 'ccstatusline-settings.json');
+        const configPath = path.join(testClaudeConfigDir, 'mochiapi-statusline-settings.json');
         initConfigPath(configPath);
         const settingsWithSkills = {
             ...DEFAULT_SETTINGS,
@@ -198,20 +198,20 @@ describe('buildCommand via installStatusLine', () => {
 
         await installStatusLine(false);
 
-        const installedCommand = `${CCSTATUSLINE_COMMANDS.NPM} --config ${configPath}`;
+        const installedCommand = `${MOCHIAPI_STATUSLINE_COMMANDS.NPM} --config ${configPath}`;
         const claudeSettings = await loadClaudeSettings();
         expect(claudeSettings.statusLine?.command).toBe(installedCommand);
         const hooks = (claudeSettings.hooks ?? {}) as Record<string, unknown[]>;
         expect(hooks.PreToolUse).toEqual([
             {
-                _tag: 'ccstatusline-managed',
+                _tag: 'mochiapi-statusline-managed',
                 matcher: 'Skill',
                 hooks: [{ type: 'command', command: `${installedCommand} --hook` }]
             }
         ]);
         expect(hooks.UserPromptSubmit).toEqual([
             {
-                _tag: 'ccstatusline-managed',
+                _tag: 'mochiapi-statusline-managed',
                 hooks: [{ type: 'command', command: `${installedCommand} --hook` }]
             }
         ]);
@@ -235,7 +235,7 @@ describe('installStatusLine refreshInterval', () => {
         writeRawClaudeSettings(JSON.stringify({
             statusLine: {
                 type: 'command',
-                command: CCSTATUSLINE_COMMANDS.NPM,
+                command: MOCHIAPI_STATUSLINE_COMMANDS.NPM,
                 padding: 0,
                 refreshInterval: 5
             }
@@ -254,7 +254,7 @@ describe('refreshInterval', () => {
         await saveClaudeSettings({
             statusLine: {
                 type: 'command',
-                command: CCSTATUSLINE_COMMANDS.NPM,
+                command: MOCHIAPI_STATUSLINE_COMMANDS.NPM,
                 padding: 0
             }
         });
@@ -265,7 +265,7 @@ describe('refreshInterval', () => {
         await saveClaudeSettings({
             statusLine: {
                 type: 'command',
-                command: CCSTATUSLINE_COMMANDS.NPM,
+                command: MOCHIAPI_STATUSLINE_COMMANDS.NPM,
                 padding: 0,
                 refreshInterval: 5
             }
@@ -277,7 +277,7 @@ describe('refreshInterval', () => {
         await saveClaudeSettings({
             statusLine: {
                 type: 'command',
-                command: CCSTATUSLINE_COMMANDS.NPM,
+                command: MOCHIAPI_STATUSLINE_COMMANDS.NPM,
                 padding: 0
             }
         });
@@ -292,7 +292,7 @@ describe('refreshInterval', () => {
         await saveClaudeSettings({
             statusLine: {
                 type: 'command',
-                command: CCSTATUSLINE_COMMANDS.NPM,
+                command: MOCHIAPI_STATUSLINE_COMMANDS.NPM,
                 padding: 0,
                 refreshInterval: 10
             }
@@ -327,14 +327,14 @@ describe('backup and error handling behavior', () => {
         await saveClaudeSettings({
             statusLine: {
                 type: 'command',
-                command: CCSTATUSLINE_COMMANDS.NPM,
+                command: MOCHIAPI_STATUSLINE_COMMANDS.NPM,
                 padding: 0
             }
         });
 
         const settingsPath = getClaudeSettingsPath();
         const saved = JSON.parse(fs.readFileSync(settingsPath, 'utf-8')) as { statusLine?: { command?: string } };
-        expect(saved.statusLine?.command).toBe(CCSTATUSLINE_COMMANDS.NPM);
+        expect(saved.statusLine?.command).toBe(MOCHIAPI_STATUSLINE_COMMANDS.NPM);
         expect(fs.existsSync(`${settingsPath}.bak`)).toBe(true);
 
         const backup = JSON.parse(fs.readFileSync(`${settingsPath}.bak`, 'utf-8')) as { statusLine?: { command?: string } };
@@ -396,7 +396,7 @@ describe('backup and error handling behavior', () => {
 
             const settingsPath = getClaudeSettingsPath();
             const installed = JSON.parse(fs.readFileSync(settingsPath, 'utf-8')) as { statusLine?: { command?: string; padding?: number } };
-            expect(installed.statusLine?.command).toBe(CCSTATUSLINE_COMMANDS.NPM);
+            expect(installed.statusLine?.command).toBe(MOCHIAPI_STATUSLINE_COMMANDS.NPM);
             expect(installed.statusLine?.padding).toBe(0);
             expect(fs.existsSync(`${settingsPath}.orig`)).toBe(true);
             expect(fs.readFileSync(`${settingsPath}.orig`, 'utf-8')).toBe('{ invalid json');
@@ -430,15 +430,15 @@ describe('backup and error handling behavior', () => {
         writeRawClaudeSettings(JSON.stringify({
             statusLine: {
                 type: 'command',
-                command: CCSTATUSLINE_COMMANDS.NPM,
+                command: MOCHIAPI_STATUSLINE_COMMANDS.NPM,
                 padding: 0
             },
             hooks: {
                 PreToolUse: [
                     {
-                        _tag: 'ccstatusline-managed',
+                        _tag: 'mochiapi-statusline-managed',
                         matcher: 'Skill',
-                        hooks: [{ type: 'command', command: `${CCSTATUSLINE_COMMANDS.NPM} --hook` }]
+                        hooks: [{ type: 'command', command: `${MOCHIAPI_STATUSLINE_COMMANDS.NPM} --hook` }]
                     },
                     {
                         matcher: 'Other',
@@ -447,8 +447,8 @@ describe('backup and error handling behavior', () => {
                 ],
                 UserPromptSubmit: [
                     {
-                        _tag: 'ccstatusline-managed',
-                        hooks: [{ type: 'command', command: `${CCSTATUSLINE_COMMANDS.NPM} --hook` }]
+                        _tag: 'mochiapi-statusline-managed',
+                        hooks: [{ type: 'command', command: `${MOCHIAPI_STATUSLINE_COMMANDS.NPM} --hook` }]
                     }
                 ]
             }
@@ -487,7 +487,7 @@ describe('backup and error handling behavior', () => {
         await saveClaudeSettings({
             statusLine: {
                 type: 'command',
-                command: `${CCSTATUSLINE_COMMANDS.NPM} --config /tmp/settings.json`
+                command: `${MOCHIAPI_STATUSLINE_COMMANDS.NPM} --config /tmp/settings.json`
             }
         });
 
@@ -498,7 +498,7 @@ describe('backup and error handling behavior', () => {
         await saveClaudeSettings({
             statusLine: {
                 type: 'command',
-                command: 'bun run "/Users/Jane Doe/ccstatusline/src/ccstatusline.ts"'
+                command: 'bun run "/Users/Jane Doe/ccstatusline/src/mochiapi-statusline.ts"'
             }
         });
 
@@ -587,7 +587,7 @@ describe('getVoiceConfig', () => {
     }
 
     beforeEach(() => {
-        testProjectDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ccstatusline-voice-project-'));
+        testProjectDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mochiapi-statusline-voice-project-'));
     });
 
     afterEach(() => {

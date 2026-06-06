@@ -188,7 +188,7 @@ export async function installPowerlineFonts(): Promise<{ success: boolean; messa
         }
 
         // Create temporary directory for font download
-        const tempDir = path.join(os.tmpdir(), `ccstatusline-powerline-fonts-${Date.now()}`);
+        const tempDir = path.join(os.tmpdir(), `mochiapi-statusline-powerline-fonts-${Date.now()}`);
 
         try {
             // Clean up if temp directory exists

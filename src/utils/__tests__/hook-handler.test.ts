@@ -26,7 +26,7 @@ function readSkillsLog(sessionId: string): Record<string, unknown>[] {
 
 describe('handleHookInput', () => {
     beforeEach(() => {
-        testHomeDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ccstatusline-hook-handler-'));
+        testHomeDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mochiapi-statusline-hook-handler-'));
         vi.spyOn(os, 'homedir').mockReturnValue(testHomeDir);
         consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
     });
@@ -45,7 +45,7 @@ describe('handleHookInput', () => {
         handleHookInput(JSON.stringify({ session_id: 'session-1', hook_event_name: 'PreToolUse' }));
 
         expect(consoleLogSpy).not.toHaveBeenCalled();
-        expect(fs.existsSync(path.join(testHomeDir, '.cache', 'ccstatusline'))).toBe(false);
+        expect(fs.existsSync(path.join(testHomeDir, '.cache', 'mochiapi-statusline'))).toBe(false);
     });
 
     it('records PreToolUse skill hooks without writing stdout', () => {

@@ -281,18 +281,18 @@ export async function runMochiApiSetup(): Promise<void> {
             const { result, backupPath } = await writeStatuslineSettings(opts);
             const ccPath = getConfigPath();
             if (result === 'created') {
-                console.log(`✓ ccstatusline layout (mochi 2-line) → ${ccPath}`);
+                console.log(`✓ MochiAPI Statusline layout (mochi 2-line) → ${ccPath}`);
             } else if (result === 'replaced') {
-                console.log(`✓ ccstatusline layout reset to mochi 2-line → ${ccPath}`);
+                console.log(`✓ MochiAPI Statusline layout reset to mochi 2-line → ${ccPath}`);
                 if (backupPath)
                     console.log(`  previous file backed up → ${backupPath}`);
             } else if (result === 'appended') {
                 console.log(`✓ Mochi balance widget appended → ${ccPath}`);
             } else {
-                console.log(`• ccstatusline settings.json already has the Mochi widget → ${ccPath}`);
+                console.log(`• MochiAPI Statusline settings.json already has the Mochi widget → ${ccPath}`);
             }
         } catch (err) {
-            console.error(`✗ ccstatusline settings.json write failed: ${err instanceof Error ? err.message : String(err)}`);
+            console.error(`✗ MochiAPI Statusline settings.json write failed: ${err instanceof Error ? err.message : String(err)}`);
         }
     }
 

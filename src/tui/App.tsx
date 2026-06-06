@@ -16,7 +16,7 @@ import React, {
 import type { Settings } from '../types/Settings';
 import type { WidgetItem } from '../types/Widget';
 import {
-    CCSTATUSLINE_COMMANDS,
+    MOCHIAPI_STATUSLINE_COMMANDS,
     getClaudeSettingsPath,
     getExistingStatusLine,
     installStatusLine,
@@ -60,7 +60,7 @@ import {
     type MainMenuOption
 } from './components';
 
-const GITHUB_REPO_URL = 'https://github.com/sirmalloc/ccstatusline';
+const GITHUB_REPO_URL = 'https://github.com/Subaru486desuwa/mochiapi-statusline';
 
 interface FlashMessage {
     text: string;
@@ -196,9 +196,9 @@ export const App: React.FC = () => {
             if (existing && !isAlreadyInstalled) {
                 message = `This will modify ${getClaudeSettingsPath()}\n\nA status line is already configured: "${existing}"\nReplace it with ${command}?`;
             } else if (isAlreadyInstalled) {
-                message = `ccstatusline is already installed in ${getClaudeSettingsPath()}\nUpdate it with ${command}?`;
+                message = `MochiAPI Statusline is already installed in${getClaudeSettingsPath()}\nUpdate it with ${command}?`;
             } else {
-                message = `This will modify ${getClaudeSettingsPath()} to add ccstatusline with ${displayName}.\nContinue?`;
+                message = `This will modify ${getClaudeSettingsPath()} to add MochiAPI Statusline with ${displayName}.\nContinue?`;
             }
 
             setConfirmDialog({
@@ -220,12 +220,12 @@ export const App: React.FC = () => {
 
     const handleNpxInstall = useCallback(() => {
         setMenuSelections(prev => ({ ...prev, install: 0 }));
-        handleInstallSelection(CCSTATUSLINE_COMMANDS.NPM, 'npx', false);
+        handleInstallSelection(MOCHIAPI_STATUSLINE_COMMANDS.NPM, 'npx', false);
     }, [handleInstallSelection]);
 
     const handleBunxInstall = useCallback(() => {
         setMenuSelections(prev => ({ ...prev, install: 1 }));
-        handleInstallSelection(CCSTATUSLINE_COMMANDS.BUNX, 'bunx', true);
+        handleInstallSelection(MOCHIAPI_STATUSLINE_COMMANDS.BUNX, 'bunx', true);
     }, [handleInstallSelection]);
 
     const handleInstallMenuCancel = useCallback(() => {
@@ -241,7 +241,7 @@ export const App: React.FC = () => {
         if (isClaudeInstalled) {
             // Uninstall
             setConfirmDialog({
-                message: `This will remove ccstatusline from ${getClaudeSettingsPath()}. Continue?`,
+                message: `This will remove MochiAPI Statusline from${getClaudeSettingsPath()}. Continue?`,
                 action: async () => {
                     await uninstallStatusLine();
                     setIsClaudeInstalled(false);
@@ -283,7 +283,7 @@ export const App: React.FC = () => {
                 break;
             case 'starGithub':
                 setConfirmDialog({
-                    message: `Open the ccstatusline GitHub repository in your browser?\n\n${GITHUB_REPO_URL}`,
+                    message: `Open the MochiAPI Statusline GitHub repository in your browser?\n\n${GITHUB_REPO_URL}`,
                     action: () => {
                         const result = openExternalUrl(GITHUB_REPO_URL);
                         if (result.success) {
@@ -336,7 +336,7 @@ export const App: React.FC = () => {
             <Box marginBottom={1}>
                 <Text bold>
                     <Gradient name='retro'>
-                        CCStatusline Configuration
+                        MochiAPI Statusline
                     </Gradient>
                 </Text>
                 <Text bold>

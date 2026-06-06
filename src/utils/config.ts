@@ -20,7 +20,9 @@ const readFile = fs.promises.readFile;
 const writeFile = fs.promises.writeFile;
 const mkdir = fs.promises.mkdir;
 
-const DEFAULT_SETTINGS_PATH = path.join(os.homedir(), '.config', 'ccstatusline', 'settings.json');
+const DEFAULT_SETTINGS_PATH = path.join(os.homedir(), '.config', 'mochiapi-statusline', 'settings.json');
+// Upstream ccstatusline location, migrated from on first load (see migrateLegacyConfigIfNeeded).
+const LEGACY_SETTINGS_PATH = path.join(os.homedir(), '.config', 'ccstatusline', 'settings.json');
 
 let settingsPath = DEFAULT_SETTINGS_PATH;
 
@@ -95,8 +97,28 @@ async function recoverWithDefaults(paths: SettingsPaths): Promise<Settings> {
     return await writeDefaultSettings(paths);
 }
 
+async function migrateLegacyConfigIfNeeded(paths: SettingsPaths): Promise<void> {
+    // One-time, non-destructive migration from the upstream ccstatusline config
+    // location. Only when using the default path, the new settings file is
+    // absent, and a legacy ~/.config/ccstatusline/settings.json exists: copy it
+    // over. The legacy file is left in place as a backup.
+    if (isCustomConfigPath())
+        return;
+    if (fs.existsSync(paths.settingsPath) || !fs.existsSync(LEGACY_SETTINGS_PATH))
+        return;
+    try {
+        const legacy = await readFile(LEGACY_SETTINGS_PATH, 'utf-8');
+        await mkdir(paths.configDir, { recursive: true });
+        await writeFile(paths.settingsPath, legacy, 'utf-8');
+        console.error(`Migrated settings from ${LEGACY_SETTINGS_PATH} to ${paths.settingsPath}`);
+    } catch (error) {
+        console.error('Failed to migrate legacy ccstatusline settings:', error);
+    }
+}
+
 export async function loadSettings(): Promise<Settings> {
     const paths = getSettingsPaths();
+    await migrateLegacyConfigIfNeeded(paths);
 
     try {
         // Check if settings file exists

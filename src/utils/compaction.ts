@@ -92,7 +92,7 @@ export function detectCompaction(
 }
 
 function getCacheDir(): string {
-    return path.join(os.homedir(), '.cache', 'ccstatusline', 'compaction');
+    return path.join(os.homedir(), '.cache', 'mochiapi-statusline', 'compaction');
 }
 
 function sanitizeSessionId(sessionId: string): string {
