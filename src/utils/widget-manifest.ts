@@ -95,7 +95,8 @@ export const WIDGET_MANIFEST: WidgetManifestEntry[] = [
     { type: 'compaction-counter', create: () => new widgets.CompactionCounterWidget() },
     { type: 'mochiapi-balance', create: () => new widgets.MochiApiBalanceWidget() },
     { type: 'mochiapi-daily-spend', create: () => new widgets.MochiApiDailySpendWidget() },
-    { type: 'mochiapi-subscription', create: () => new widgets.MochiApiSubscriptionWidget() }
+    { type: 'mochiapi-subscription', create: () => new widgets.MochiApiSubscriptionWidget() },
+    { type: 'mochiapi-subscription-balance', create: () => new widgets.MochiApiSubscriptionBalanceWidget() }
 ];
 
 export const LAYOUT_WIDGET_MANIFEST: LayoutWidgetManifestEntry[] = [

@@ -13,18 +13,10 @@ import {
     viewFromCache
 } from '../utils/mochiapi';
 
-function fmtUsd(v: number): string {
-    if (v >= 1000)
-        return `$${v.toFixed(0)}`;
-    if (v >= 10)
-        return `$${v.toFixed(2)}`;
-    return `$${v.toFixed(3)}`;
-}
-
-export class MochiApiSubscriptionWidget implements Widget {
-    getDefaultColor(): string { return 'cyan'; }
-    getDescription(): string { return 'MochiAPI billing summary: balance, today spend, and token subscription status'; }
-    getDisplayName(): string { return 'MochiAPI Subscription'; }
+export class MochiApiSubscriptionBalanceWidget implements Widget {
+    getDefaultColor(): string { return 'green'; }
+    getDescription(): string { return 'MochiAPI subscription usage (% used + reset countdown) from /api/usage/token/'; }
+    getDisplayName(): string { return 'MochiAPI Subscription Usage'; }
     getCategory(): string { return 'MochiAPI'; }
 
     getEditorDisplay(_item: WidgetItem): WidgetEditorDisplay {
@@ -35,40 +27,33 @@ export class MochiApiSubscriptionWidget implements Widget {
         const labeled = !item.rawValue;
 
         if (context.isPreview) {
-            const preview = '余额 $1.54 · 今日 $0.277 · 订阅 4% · 5d12h';
-            return labeled ? `Mochi: ${preview}` : preview;
+            return labeled ? 'Sub: 67% · 5d12h' : '67% · 5d12h';
         }
 
         const cfg = loadMochiConfig();
         if (!cfg) {
-            return labeled ? 'Mochi: cfg?' : 'cfg?';
+            return labeled ? 'Sub: cfg?' : 'cfg?';
         }
-
         const cache = readCache();
         maybeRefreshInBackground(cfg, cache);
         const view = viewFromCache(cache, cfg);
         if (!view)
-            return labeled ? 'Mochi: ...' : '...';
+            return labeled ? 'Sub: ...' : '...';
 
-        const balance = view.balanceUsd !== null
-            ? fmtUsd(view.balanceUsd)
-            : (view.unlimited ? '∞' : '?');
-        const today = view.todayUsedUsd === null ? '?' : fmtUsd(view.todayUsedUsd);
-        let subscription: string;
+        let body: string;
         if (view.subscriptionUnlimited) {
-            subscription = '∞';
+            body = '∞';
         } else if (view.hasSubscription && view.subscriptionUsedPct !== null) {
             const pct = `${view.subscriptionUsedPct}%`;
-            subscription = view.subscriptionResetAt !== null
+            body = view.subscriptionResetAt !== null
                 ? `${pct} · ${formatResetCountdown(view.subscriptionResetAt)}`
                 : pct;
         } else {
-            subscription = '-';
+            body = '-';
         }
 
-        const body = `余额 ${balance} · 今日 ${today} · 订阅 ${subscription}`;
         const decorated = view.stale ? `${body}*` : body;
-        return labeled ? `Mochi: ${decorated}` : decorated;
+        return labeled ? `Sub: ${decorated}` : decorated;
     }
 
     supportsRawValue(): boolean { return true; }

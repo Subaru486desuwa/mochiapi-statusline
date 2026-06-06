@@ -39,6 +39,14 @@ export interface MochiApiCache {
     tokenTotalUsedUsd?: number | null;
     /** Local date associated with tokenTotalUsedUsd, used as the daily-spend baseline. */
     tokenTotalUsedLocalDate?: string | null;
+    /** Subscription total quota this period (USD) — data.subscription_total_usd. */
+    subscriptionTotalUsd?: number | null;
+    /** Subscription used this period (USD) — data.subscription_used_usd. */
+    subscriptionUsedUsd?: number | null;
+    /** Subscription reset/expiry (unix seconds; 0 = no countdown) — data.subscription_reset_at. */
+    subscriptionResetAt?: number | null;
+    /** Subscription unlimited-plan flag — data.subscription_unlimited. */
+    subscriptionUnlimited?: boolean | null;
     error?: string;
 }
 
@@ -302,7 +310,11 @@ function cacheFromTokenUsage(resp: unknown, now: number, prev: MochiApiCache | n
         ) ?? limitedTokenRemainFallback,
         tokenUnlimited,
         tokenTotalUsedUsd: totalUsedUsd,
-        tokenTotalUsedLocalDate: totalUsedUsd === null ? null : todayKey
+        tokenTotalUsedLocalDate: totalUsedUsd === null ? null : todayKey,
+        subscriptionTotalUsd: firstNum(d.subscription_total_usd),
+        subscriptionUsedUsd: firstNum(d.subscription_used_usd),
+        subscriptionResetAt: toNum(d.subscription_reset_at),
+        subscriptionUnlimited: toBool(d.subscription_unlimited)
     };
 }
 
@@ -335,7 +347,11 @@ async function cacheFromDashboard(cfg: MochiApiConfig, resp: unknown, now: numbe
         tokenRemainUsd: toNum(d.token_remain_quota_usd),
         tokenUnlimited: toBool(d.token_unlimited),
         tokenTotalUsedUsd: totalUsedUsd,
-        tokenTotalUsedLocalDate: totalUsedUsd === null ? null : localDateKey(now)
+        tokenTotalUsedLocalDate: totalUsedUsd === null ? null : localDateKey(now),
+        subscriptionTotalUsd: firstNum(d.subscription_total_usd),
+        subscriptionUsedUsd: firstNum(d.subscription_used_usd),
+        subscriptionResetAt: toNum(d.subscription_reset_at),
+        subscriptionUnlimited: toBool(d.subscription_unlimited)
     };
 }
 
@@ -407,6 +423,10 @@ export async function fetchBalance(cfg: MochiApiConfig, previousCache?: MochiApi
         tokenUnlimited: prev?.tokenUnlimited ?? null,
         tokenTotalUsedUsd: prev?.tokenTotalUsedUsd ?? null,
         tokenTotalUsedLocalDate: prev?.tokenTotalUsedLocalDate ?? null,
+        subscriptionTotalUsd: prev?.subscriptionTotalUsd ?? null,
+        subscriptionUsedUsd: prev?.subscriptionUsedUsd ?? null,
+        subscriptionResetAt: prev?.subscriptionResetAt ?? null,
+        subscriptionUnlimited: prev?.subscriptionUnlimited ?? null,
         error: errors.join('; ') || 'MochiAPI balance fetch failed'
     };
 }
@@ -446,6 +466,14 @@ export interface MochiBalanceView {
     tokenUnlimited: boolean | null;
     /** Today's spend (USD). */
     todayUsedUsd: number | null;
+    /** Subscription percent used (0–100), null when no active subscription. */
+    subscriptionUsedPct: number | null;
+    /** Subscription reset/expiry (unix seconds), null when none / 0. */
+    subscriptionResetAt: number | null;
+    /** Subscription is an unlimited plan. */
+    subscriptionUnlimited: boolean;
+    /** An active subscription with a positive total quota exists. */
+    hasSubscription: boolean;
     /** Account balance is unlimited when the account quota/top-up total is sentinel-large (≥ 1e7). */
     unlimited: boolean;
     stale: boolean;
@@ -462,8 +490,8 @@ export function viewFromCache(cache: MochiApiCache | null, cfg: MochiApiConfig |
     const accountSentinelUnlimited = typeof quota === 'number' && quota >= UNLIMITED_THRESHOLD;
     const hasAccountSignal
         = typeof quota === 'number'
-        || typeof used === 'number'
-        || typeof cache.directBalanceUsd === 'number';
+            || typeof used === 'number'
+            || typeof cache.directBalanceUsd === 'number';
     // Mochi's /api/usage/token/ does not expose any account-level USD figure when the
     // token is unlimited, so an unlimited token is the only signal we have to fall back
     // on. Limited tokens still keep account/token balance separate (see tests).
@@ -481,6 +509,17 @@ export function viewFromCache(cache: MochiApiCache | null, cfg: MochiApiConfig |
             : tokenRemain;
     }
 
+    const subscriptionUnlimited = cache.subscriptionUnlimited === true;
+    const subTotal = typeof cache.subscriptionTotalUsd === 'number' ? cache.subscriptionTotalUsd : null;
+    const subUsed = typeof cache.subscriptionUsedUsd === 'number' ? cache.subscriptionUsedUsd : null;
+    const hasSubscription = !subscriptionUnlimited && subTotal !== null && subTotal > 0;
+    const subscriptionUsedPct = hasSubscription && subUsed !== null
+        ? Math.min(100, Math.max(0, Math.round((subUsed / subTotal) * 100)))
+        : null;
+    const subscriptionResetAt = typeof cache.subscriptionResetAt === 'number' && cache.subscriptionResetAt > 0
+        ? cache.subscriptionResetAt
+        : null;
+
     const stale = cfg !== null && Date.now() - cache.fetchedAt > cfg.refreshIntervalSec * 2000;
 
     return {
@@ -492,10 +531,29 @@ export function viewFromCache(cache: MochiApiCache | null, cfg: MochiApiConfig |
         tokenRemainUsd: cache.tokenRemainUsd,
         tokenUnlimited: cache.tokenUnlimited,
         todayUsedUsd: cache.todayUsedUsd,
+        subscriptionUsedPct,
+        subscriptionResetAt,
+        subscriptionUnlimited,
+        hasSubscription,
         unlimited,
         stale,
         error: cache.ok ? undefined : cache.error
     };
+}
+
+/** Compact countdown to a unix-seconds deadline: `5d12h`, `5d`, `12h`, `<1h`, or `0h` once past. */
+export function formatResetCountdown(resetAtSec: number, nowMs: number = Date.now()): string {
+    const remainMs = resetAtSec * 1000 - nowMs;
+    if (remainMs <= 0)
+        return '0h';
+    const totalHours = Math.floor(remainMs / 3_600_000);
+    const days = Math.floor(totalHours / 24);
+    const hours = totalHours % 24;
+    if (days >= 1)
+        return hours > 0 ? `${days}d${hours}h` : `${days}d`;
+    if (totalHours >= 1)
+        return `${totalHours}h`;
+    return '<1h';
 }
 
 export async function refreshCli(): Promise<void> {

@@ -1,6 +1,6 @@
 {
   "name": "mochiapi-statusline",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Claude Code status line for MochiAPI users — account balance, today's spend, model, context, and git in your terminal",
   "module": "src/ccstatusline.ts",
   "type": "module",

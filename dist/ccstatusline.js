@@ -56075,7 +56075,7 @@ function getTerminalWidth() {
 function canDetectTerminalWidth() {
   return probeTerminalWidth() !== null;
 }
-var __dirname = "/Volumes/ExtremeSSD/Developer/mochiapi/statusline/src/utils", PACKAGE_VERSION = "0.1.2";
+var __dirname = "/Volumes/ExtremeSSD/Developer/mochiapi/statusline/src/utils", PACKAGE_VERSION = "0.1.3";
 var init_terminal = () => {};
 
 // src/utils/renderer.ts
@@ -66996,6 +66996,7 @@ __export(exports_mochiapi, {
   readCache: () => readCache2,
   maybeRefreshInBackground: () => maybeRefreshInBackground,
   loadMochiConfig: () => loadMochiConfig,
+  formatResetCountdown: () => formatResetCountdown,
   fetchBalance: () => fetchBalance,
   MOCHI_CONFIG_PATH: () => MOCHI_CONFIG_PATH,
   MOCHI_CACHE_PATH: () => MOCHI_CACHE_PATH
@@ -67196,7 +67197,11 @@ function cacheFromTokenUsage(resp, now2, prev) {
     tokenRemainUsd: firstNum(d.total_usd_available, d.token_remain_quota_usd, d.token_remaining_quota_usd, d.token_available_usd) ?? limitedTokenRemainFallback,
     tokenUnlimited,
     tokenTotalUsedUsd: totalUsedUsd,
-    tokenTotalUsedLocalDate: totalUsedUsd === null ? null : todayKey
+    tokenTotalUsedLocalDate: totalUsedUsd === null ? null : todayKey,
+    subscriptionTotalUsd: firstNum(d.subscription_total_usd),
+    subscriptionUsedUsd: firstNum(d.subscription_used_usd),
+    subscriptionResetAt: toNum(d.subscription_reset_at),
+    subscriptionUnlimited: toBool(d.subscription_unlimited)
   };
 }
 async function cacheFromDashboard(cfg, resp, now2) {
@@ -67213,7 +67218,11 @@ async function cacheFromDashboard(cfg, resp, now2) {
     tokenRemainUsd: toNum(d.token_remain_quota_usd),
     tokenUnlimited: toBool(d.token_unlimited),
     tokenTotalUsedUsd: totalUsedUsd,
-    tokenTotalUsedLocalDate: totalUsedUsd === null ? null : localDateKey(now2)
+    tokenTotalUsedLocalDate: totalUsedUsd === null ? null : localDateKey(now2),
+    subscriptionTotalUsd: firstNum(d.subscription_total_usd),
+    subscriptionUsedUsd: firstNum(d.subscription_used_usd),
+    subscriptionResetAt: toNum(d.subscription_reset_at),
+    subscriptionUnlimited: toBool(d.subscription_unlimited)
   };
 }
 async function fetchDirectBalance(cfg) {
@@ -67266,6 +67275,10 @@ async function fetchBalance(cfg, previousCache) {
     tokenUnlimited: prev?.tokenUnlimited ?? null,
     tokenTotalUsedUsd: prev?.tokenTotalUsedUsd ?? null,
     tokenTotalUsedLocalDate: prev?.tokenTotalUsedLocalDate ?? null,
+    subscriptionTotalUsd: prev?.subscriptionTotalUsd ?? null,
+    subscriptionUsedUsd: prev?.subscriptionUsedUsd ?? null,
+    subscriptionResetAt: prev?.subscriptionResetAt ?? null,
+    subscriptionUnlimited: prev?.subscriptionUnlimited ?? null,
     error: errors3.join("; ") || "MochiAPI balance fetch failed"
   };
 }
@@ -67304,6 +67317,12 @@ function viewFromCache(cache3, cfg) {
   } else if (!unlimited) {
     balanceUsd = typeof quota === "number" ? quota : tokenRemain;
   }
+  const subscriptionUnlimited = cache3.subscriptionUnlimited === true;
+  const subTotal = typeof cache3.subscriptionTotalUsd === "number" ? cache3.subscriptionTotalUsd : null;
+  const subUsed = typeof cache3.subscriptionUsedUsd === "number" ? cache3.subscriptionUsedUsd : null;
+  const hasSubscription = !subscriptionUnlimited && subTotal !== null && subTotal > 0;
+  const subscriptionUsedPct = hasSubscription && subUsed !== null ? Math.min(100, Math.max(0, Math.round(subUsed / subTotal * 100))) : null;
+  const subscriptionResetAt = typeof cache3.subscriptionResetAt === "number" && cache3.subscriptionResetAt > 0 ? cache3.subscriptionResetAt : null;
   const stale = cfg !== null && Date.now() - cache3.fetchedAt > cfg.refreshIntervalSec * 2000;
   return {
     balanceUsd,
@@ -67314,10 +67333,27 @@ function viewFromCache(cache3, cfg) {
     tokenRemainUsd: cache3.tokenRemainUsd,
     tokenUnlimited: cache3.tokenUnlimited,
     todayUsedUsd: cache3.todayUsedUsd,
+    subscriptionUsedPct,
+    subscriptionResetAt,
+    subscriptionUnlimited,
+    hasSubscription,
     unlimited,
     stale,
     error: cache3.ok ? undefined : cache3.error
   };
+}
+function formatResetCountdown(resetAtSec, nowMs = Date.now()) {
+  const remainMs = resetAtSec * 1000 - nowMs;
+  if (remainMs <= 0)
+    return "0h";
+  const totalHours = Math.floor(remainMs / 3600000);
+  const days = Math.floor(totalHours / 24);
+  const hours = totalHours % 24;
+  if (days >= 1)
+    return hours > 0 ? `${days}d${hours}h` : `${days}d`;
+  if (totalHours >= 1)
+    return `${totalHours}h`;
+  return "<1h";
 }
 async function refreshCli() {
   const cfg = loadMochiConfig();
@@ -67475,7 +67511,7 @@ class MochiApiSubscriptionWidget {
   render(item, context, _settings) {
     const labeled = !item.rawValue;
     if (context.isPreview) {
-      const preview = "余额 $1.54 · 今日 $0.277 · 订阅 ∞";
+      const preview = "余额 $1.54 · 今日 $0.277 · 订阅 4% · 5d12h";
       return labeled ? `Mochi: ${preview}` : preview;
     }
     const cfg = loadMochiConfig();
@@ -67489,7 +67525,15 @@ class MochiApiSubscriptionWidget {
       return labeled ? "Mochi: ..." : "...";
     const balance = view.balanceUsd !== null ? fmtUsd3(view.balanceUsd) : view.unlimited ? "∞" : "?";
     const today = view.todayUsedUsd === null ? "?" : fmtUsd3(view.todayUsedUsd);
-    const subscription = view.tokenUnlimited === true ? "∞" : view.tokenRemainUsd === null ? "?" : fmtUsd3(view.tokenRemainUsd);
+    let subscription;
+    if (view.subscriptionUnlimited) {
+      subscription = "∞";
+    } else if (view.hasSubscription && view.subscriptionUsedPct !== null) {
+      const pct = `${view.subscriptionUsedPct}%`;
+      subscription = view.subscriptionResetAt !== null ? `${pct} · ${formatResetCountdown(view.subscriptionResetAt)}` : pct;
+    } else {
+      subscription = "-";
+    }
     const body = `余额 ${balance} · 今日 ${today} · 订阅 ${subscription}`;
     const decorated = view.stale ? `${body}*` : body;
     return labeled ? `Mochi: ${decorated}` : decorated;
@@ -67502,6 +67546,60 @@ class MochiApiSubscriptionWidget {
   }
 }
 var init_MochiApiSubscription = __esm(() => {
+  init_mochiapi();
+});
+
+// src/widgets/MochiApiSubscriptionBalance.ts
+class MochiApiSubscriptionBalanceWidget {
+  getDefaultColor() {
+    return "green";
+  }
+  getDescription() {
+    return "MochiAPI subscription usage (% used + reset countdown) from /api/usage/token/";
+  }
+  getDisplayName() {
+    return "MochiAPI Subscription Usage";
+  }
+  getCategory() {
+    return "MochiAPI";
+  }
+  getEditorDisplay(_item) {
+    return { displayText: this.getDisplayName() };
+  }
+  render(item, context, _settings) {
+    const labeled = !item.rawValue;
+    if (context.isPreview) {
+      return labeled ? "Sub: 67% · 5d12h" : "67% · 5d12h";
+    }
+    const cfg = loadMochiConfig();
+    if (!cfg) {
+      return labeled ? "Sub: cfg?" : "cfg?";
+    }
+    const cache3 = readCache2();
+    maybeRefreshInBackground(cfg, cache3);
+    const view = viewFromCache(cache3, cfg);
+    if (!view)
+      return labeled ? "Sub: ..." : "...";
+    let body;
+    if (view.subscriptionUnlimited) {
+      body = "∞";
+    } else if (view.hasSubscription && view.subscriptionUsedPct !== null) {
+      const pct = `${view.subscriptionUsedPct}%`;
+      body = view.subscriptionResetAt !== null ? `${pct} · ${formatResetCountdown(view.subscriptionResetAt)}` : pct;
+    } else {
+      body = "-";
+    }
+    const decorated = view.stale ? `${body}*` : body;
+    return labeled ? `Sub: ${decorated}` : decorated;
+  }
+  supportsRawValue() {
+    return true;
+  }
+  supportsColors(_item) {
+    return true;
+  }
+}
+var init_MochiApiSubscriptionBalance = __esm(() => {
   init_mochiapi();
 });
 
@@ -67551,6 +67649,7 @@ var init_widgets = __esm(async () => {
   init_MochiApiBalance();
   init_MochiApiDailySpend();
   init_MochiApiSubscription();
+  init_MochiApiSubscriptionBalance();
   await __promiseAll([
     init_TokensInput(),
     init_TokensOutput(),
@@ -67664,7 +67763,8 @@ var init_widget_manifest = __esm(async () => {
     { type: "compaction-counter", create: () => new CompactionCounterWidget },
     { type: "mochiapi-balance", create: () => new MochiApiBalanceWidget },
     { type: "mochiapi-daily-spend", create: () => new MochiApiDailySpendWidget },
-    { type: "mochiapi-subscription", create: () => new MochiApiSubscriptionWidget }
+    { type: "mochiapi-subscription", create: () => new MochiApiSubscriptionWidget },
+    { type: "mochiapi-subscription-balance", create: () => new MochiApiSubscriptionBalanceWidget }
   ];
   LAYOUT_WIDGET_MANIFEST = [
     {

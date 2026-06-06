@@ -55,6 +55,43 @@ describe('mochiapi cache view', () => {
         expect(view?.todayUsedUsd).toBe(0.277);
     });
 
+    it('computes subscription used% and exposes the reset countdown basis', () => {
+        const view = viewFromCache(cache({
+            subscriptionTotalUsd: 95,
+            subscriptionUsedUsd: 4.117332, // round(4.117332 / 95 * 100) = 4
+            subscriptionResetAt: 1780841777,
+            subscriptionUnlimited: false
+        }), cfg);
+
+        expect(view?.hasSubscription).toBe(true);
+        expect(view?.subscriptionUsedPct).toBe(4);
+        expect(view?.subscriptionResetAt).toBe(1780841777);
+        expect(view?.subscriptionUnlimited).toBe(false);
+    });
+
+    it('flags an unlimited subscription and skips the percentage', () => {
+        const view = viewFromCache(cache({
+            subscriptionUnlimited: true,
+            subscriptionTotalUsd: 0
+        }), cfg);
+
+        expect(view?.subscriptionUnlimited).toBe(true);
+        expect(view?.hasSubscription).toBe(false);
+        expect(view?.subscriptionUsedPct).toBeNull();
+    });
+
+    it('reports no subscription when the total quota is zero', () => {
+        const view = viewFromCache(cache({
+            subscriptionTotalUsd: 0,
+            subscriptionUsedUsd: 0,
+            subscriptionResetAt: 0
+        }), cfg);
+
+        expect(view?.hasSubscription).toBe(false);
+        expect(view?.subscriptionUsedPct).toBeNull();
+        expect(view?.subscriptionResetAt).toBeNull();
+    });
+
     it('derives account balance from quota minus used only as a fallback', () => {
         const view = viewFromCache(cache({
             accountQuotaUsd: 9.999936,
@@ -256,6 +293,28 @@ describe('mochiapi balance fetch', () => {
         expect(result.accountQuotaUsd).toBeCloseTo(2);
         expect(result.tokenRemainUsd).toBeCloseTo(1.5);
         expect(result.tokenTotalUsedUsd).toBeCloseTo(0.5);
+    });
+
+    it('parses subscription_* fields from /api/usage/token/', async () => {
+        // Real mochi response shape for a MAX Pro weekly subscription.
+        vi.spyOn(globalThis, 'fetch').mockImplementation(vi.fn().mockResolvedValue(new Response(JSON.stringify({
+            code: true,
+            data: {
+                subscription_total_usd: 95,
+                subscription_used_usd: 4.117332,
+                subscription_reset_at: 1780841777,
+                subscription_unlimited: false,
+                user_quota_usd: 139.16
+            },
+            message: 'ok'
+        }), { status: 200 })));
+
+        const result = await fetchBalance(cfg, null);
+
+        expect(result.subscriptionTotalUsd).toBe(95);
+        expect(result.subscriptionUsedUsd).toBeCloseTo(4.117332);
+        expect(result.subscriptionResetAt).toBe(1780841777);
+        expect(result.subscriptionUnlimited).toBe(false);
     });
 
     it('falls back to account-level used diff when prev token baseline is null', async () => {
