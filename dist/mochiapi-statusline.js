@@ -56075,7 +56075,7 @@ function getTerminalWidth() {
 function canDetectTerminalWidth() {
   return probeTerminalWidth() !== null;
 }
-var __dirname = "/Volumes/ExtremeSSD/Developer/mochiapi/statusline/src/utils", PACKAGE_VERSION = "0.2.0";
+var __dirname = "/Volumes/ExtremeSSD/Developer/mochiapi/statusline/src/utils", PACKAGE_VERSION = "0.2.1";
 var init_terminal = () => {};
 
 // src/utils/renderer.ts
@@ -68087,7 +68087,7 @@ import * as os9 from "os";
 import * as path8 from "path";
 function isKnownCommand(command) {
   const prefixes = [MOCHIAPI_STATUSLINE_COMMANDS.NPM, MOCHIAPI_STATUSLINE_COMMANDS.BUNX, MOCHIAPI_STATUSLINE_COMMANDS.SELF_MANAGED];
-  return prefixes.some((prefix) => command === prefix || command.startsWith(`${prefix} --config `)) || /(?:^|[\s"'\\/])mochiapi-statusline\.ts(?=$|[\s"'])/.test(command);
+  return prefixes.some((prefix) => command === prefix || command.startsWith(`${prefix} --config `)) || /(?:^|[\s"'\\/])mochiapi-statusline(?:\.(?:ts|js|cmd))?(?=$|[\s"'])/.test(command);
 }
 function needsQuoting(filePath) {
   if (process.platform === "win32") {
@@ -68103,6 +68103,20 @@ function quotePathIfNeeded(filePath) {
     return `"${filePath.replace(/"/g, '""')}"`;
   }
   return `'${filePath.replace(/'/g, "'\\''")}'`;
+}
+function resolveSelfStatuslineCommand(scriptArg = process.argv[1], execPath = process.execPath) {
+  if (!scriptArg) {
+    return MOCHIAPI_STATUSLINE_COMMANDS.SELF_MANAGED;
+  }
+  try {
+    const scriptPath = SCRIPT_EXTENSION.test(scriptArg) && fs11.existsSync(scriptArg) ? path8.resolve(scriptArg) : fs11.realpathSync(scriptArg);
+    if (TRANSIENT_INSTALL_PATH.test(scriptPath)) {
+      return MOCHIAPI_STATUSLINE_COMMANDS.SELF_MANAGED;
+    }
+    return `${quotePathIfNeeded(execPath)} ${quotePathIfNeeded(scriptPath)}`;
+  } catch {
+    return MOCHIAPI_STATUSLINE_COMMANDS.SELF_MANAGED;
+  }
 }
 function getClaudeConfigDir() {
   const envConfigDir = process.env.CLAUDE_CONFIG_DIR;
@@ -68376,7 +68390,7 @@ function getVoiceConfig(cwd2 = process.cwd()) {
   }
   return anyFileExisted ? { enabled: false } : null;
 }
-var readFile4, writeFile2, mkdir2, MOCHIAPI_STATUSLINE_COMMANDS, VoiceConfigSchema;
+var readFile4, writeFile2, mkdir2, MOCHIAPI_STATUSLINE_COMMANDS, TRANSIENT_INSTALL_PATH, SCRIPT_EXTENSION, VoiceConfigSchema;
 var init_claude_settings = __esm(async () => {
   init_zod();
   init_Settings();
@@ -68389,6 +68403,8 @@ var init_claude_settings = __esm(async () => {
     BUNX: "bunx -y mochiapi-statusline@latest",
     SELF_MANAGED: "mochiapi-statusline"
   };
+  TRANSIENT_INSTALL_PATH = /[\\/](?:_npx|dlx|bunx-[^\\/]*|dlx-[^\\/]*|xfs-[^\\/]*)[\\/]/;
+  SCRIPT_EXTENSION = /\.(?:ts|js|mjs|cjs)$/i;
   VoiceConfigSchema = exports_external.object({ enabled: exports_external.boolean().optional() });
 });
 
@@ -68863,17 +68879,24 @@ async function writeStatuslineSettings(opts) {
 }
 async function wireClaudeStatusLine() {
   const settings = await loadClaudeSettings({ logErrors: false });
+  const command = process.platform === "win32" ? resolveSelfStatuslineCommand() : MOCHIAPI_STATUSLINE_COMMANDS.SELF_MANAGED;
   const current = settings.statusLine?.command;
-  if (current === STATUSLINE_COMMAND) {
-    return "already";
+  if (current === command || command === MOCHIAPI_STATUSLINE_COMMANDS.SELF_MANAGED && !!current && isKnownCommand(current)) {
+    return { result: "already", command: current };
   }
   const wasSet = !!current;
+  const refreshInterval = settings.statusLine?.refreshInterval;
   const next = {
     ...settings,
-    statusLine: { type: "command", command: STATUSLINE_COMMAND, padding: 0 }
+    statusLine: {
+      type: "command",
+      command,
+      padding: 0,
+      ...refreshInterval !== undefined ? { refreshInterval } : {}
+    }
   };
   await saveClaudeSettings(next);
-  return wasSet ? "replaced" : "wired";
+  return { result: wasSet ? "replaced" : "wired", command };
 }
 async function runMochiApiSetup() {
   const opts = parseFlags(process.argv.slice(2));
@@ -68944,7 +68967,7 @@ async function runMochiApiSetup() {
   }
   if (!opts.skipClaudeWire) {
     try {
-      const result2 = await wireClaudeStatusLine();
+      const { result: result2, command } = await wireClaudeStatusLine();
       const cPath = getClaudeSettingsPath();
       if (result2 === "wired")
         console.log(`✓ Claude Code statusLine wired → ${cPath}`);
@@ -68952,6 +68975,7 @@ async function runMochiApiSetup() {
         console.log(`✓ Claude Code statusLine replaced with mochiapi-statusline → ${cPath}`);
       else
         console.log(`• Claude Code statusLine already points to mochiapi-statusline → ${cPath}`);
+      console.log(`  command: ${command}`);
     } catch (err) {
       console.error(`✗ Claude Code settings.json patch failed: ${err instanceof Error ? err.message : String(err)}`);
     }
@@ -68959,7 +68983,7 @@ async function runMochiApiSetup() {
   console.log("");
   console.log("Setup complete. Open a new Claude Code session to see the status line.");
 }
-var STATUSLINE_COMMAND = "mochiapi-statusline", MOCHI_BALANCE_TYPE = "mochiapi-balance", MOCHI_DAILY_TYPE = "mochiapi-daily-spend", MOCHI_SUB_TYPE = "mochiapi-subscription-balance", LABEL_FG = "hex:111827", MODEL_BG = "hex:7AA2F7", CONTEXT_BG = "hex:414868", GIT_BG = "hex:BB9AF7", CHANGES_BG = "hex:F7768E", SPEED_BG = "hex:7DCFFF", BALANCE_BG = "hex:2AC3DE", SPEND_BG = "hex:FF9E64", DARK_FG = "hex:C0CAF5", __mochiApiSetupTest;
+var MOCHI_BALANCE_TYPE = "mochiapi-balance", MOCHI_DAILY_TYPE = "mochiapi-daily-spend", MOCHI_SUB_TYPE = "mochiapi-subscription-balance", LABEL_FG = "hex:111827", MODEL_BG = "hex:7AA2F7", CONTEXT_BG = "hex:414868", GIT_BG = "hex:BB9AF7", CHANGES_BG = "hex:F7768E", SPEED_BG = "hex:7DCFFF", BALANCE_BG = "hex:2AC3DE", SPEND_BG = "hex:FF9E64", DARK_FG = "hex:C0CAF5", __mochiApiSetupTest;
 var init_mochiapi_setup = __esm(async () => {
   init_mochiapi();
   await __promiseAll([

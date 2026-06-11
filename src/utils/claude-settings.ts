@@ -32,8 +32,9 @@ export const MOCHIAPI_STATUSLINE_COMMANDS = {
 export function isKnownCommand(command: string): boolean {
     const prefixes = [MOCHIAPI_STATUSLINE_COMMANDS.NPM, MOCHIAPI_STATUSLINE_COMMANDS.BUNX, MOCHIAPI_STATUSLINE_COMMANDS.SELF_MANAGED];
     // Also match local development commands (e.g., "bun run /path/to/mochiapi-statusline.ts")
+    // and absolute-path installs (e.g., "node /path/to/dist/mochiapi-statusline.js")
     return prefixes.some(prefix => command === prefix || command.startsWith(`${prefix} --config `))
-        || /(?:^|[\s"'\\/])mochiapi-statusline\.ts(?=$|[\s"'])/.test(command);
+        || /(?:^|[\s"'\\/])mochiapi-statusline(?:\.(?:ts|js|cmd))?(?=$|[\s"'])/.test(command);
 }
 
 function needsQuoting(filePath: string): boolean {
@@ -55,6 +56,44 @@ function quotePathIfNeeded(filePath: string): string {
     }
 
     return `'${filePath.replace(/'/g, '\'\\\'\'')}'`;
+}
+
+// npx / bunx / pnpm dlx / yarn dlx run packages out of throwaway cache directories;
+// an absolute path into one of those would go stale, so fall back to the PATH-resolved
+// command instead.
+const TRANSIENT_INSTALL_PATH = /[\\/](?:_npx|dlx|bunx-[^\\/]*|dlx-[^\\/]*|xfs-[^\\/]*)[\\/]/;
+
+const SCRIPT_EXTENSION = /\.(?:ts|js|mjs|cjs)$/i;
+
+/**
+ * Builds a statusLine command pointing at the currently running runtime + entry script
+ * by absolute path, so the command keeps working even when Claude Code is launched with
+ * a PATH that doesn't include the npm/bun global bin directory (common on Windows GUI
+ * launches). Falls back to the bare `mochiapi-statusline` command when the running
+ * script can't be resolved or lives in a transient package-runner cache.
+ */
+export function resolveSelfStatuslineCommand(
+    scriptArg: string | undefined = process.argv[1],
+    execPath: string = process.execPath
+): string {
+    if (!scriptArg) {
+        return MOCHIAPI_STATUSLINE_COMMANDS.SELF_MANAGED;
+    }
+    try {
+        // Direct script paths (npm's Windows shims pass the .js entry through
+        // version-stable junctions like nvm-windows') are kept as given — realpath
+        // would pin a versioned directory that breaks on the next node switch.
+        // Extension-less bin stubs (unix symlinks) are realpath'd to find the script.
+        const scriptPath = SCRIPT_EXTENSION.test(scriptArg) && fs.existsSync(scriptArg)
+            ? path.resolve(scriptArg)
+            : fs.realpathSync(scriptArg);
+        if (TRANSIENT_INSTALL_PATH.test(scriptPath)) {
+            return MOCHIAPI_STATUSLINE_COMMANDS.SELF_MANAGED;
+        }
+        return `${quotePathIfNeeded(execPath)} ${quotePathIfNeeded(scriptPath)}`;
+    } catch {
+        return MOCHIAPI_STATUSLINE_COMMANDS.SELF_MANAGED;
+    }
 }
 
 /**

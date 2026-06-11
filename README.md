@@ -36,7 +36,7 @@ bash / zsh / fish / PowerShell 7+ / cmd.exe 都能跑，`&&` 把装包和 setup 
 1. token + base URL → `~/.config/mochiapi-statusline/config.json`（Windows 是 `%APPDATA%\mochiapi-statusline\config.json`）
 2. 探测一次 balance 接口，确认 token 有效
 3. 把推荐的 **Mochi 两行 Powerline 布局**写入 `~/.config/mochiapi-statusline/settings.json`（已有布局会把 Mochi 计费行追加进去）
-4. 把 Claude Code 的 `~/.claude/settings.json` 里 `statusLine.command` 指向 `mochiapi-statusline`
+4. 把 Claude Code 的 `~/.claude/settings.json` 里 `statusLine.command` 指向 `mochiapi-statusline`；**Windows 上写入的是当前安装的绝对路径**（如 `"C:\Program Files\nodejs\node.exe" C:\...\dist\mochiapi-statusline.js`），这样即使 Claude 客户端启动时的 PATH 里没有 npm 全局 bin 目录（GUI 启动常见），状态栏也能正常拉起
 
 开一个新的 Claude Code 会话，状态栏就有了。
 

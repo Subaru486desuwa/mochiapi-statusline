@@ -26,6 +26,7 @@ import {
     isInstalled,
     isKnownCommand,
     loadClaudeSettings,
+    resolveSelfStatuslineCommand,
     saveClaudeSettings,
     setRefreshInterval,
     uninstallStatusLine
@@ -127,6 +128,104 @@ describe('isKnownCommand', () => {
 
     it('should match command containing a quoted mochiapi-statusline.ts path', () => {
         expect(isKnownCommand('bun run "/Users/Jane Doe/ccstatusline/src/mochiapi-statusline.ts"')).toBe(true);
+    });
+
+    it('should match absolute node + dist/mochiapi-statusline.js command', () => {
+        expect(isKnownCommand('/usr/local/bin/node /usr/local/lib/node_modules/mochiapi-statusline/dist/mochiapi-statusline.js')).toBe(true);
+    });
+
+    it('should match quoted Windows absolute-path command', () => {
+        expect(isKnownCommand('"C:\\Program Files\\nodejs\\node.exe" "C:\\Users\\slh\\AppData\\Roaming\\npm\\node_modules\\mochiapi-statusline\\dist\\mochiapi-statusline.js"')).toBe(true);
+    });
+
+    it('should match an absolute path to the bare binary', () => {
+        expect(isKnownCommand('/usr/local/bin/mochiapi-statusline')).toBe(true);
+    });
+});
+
+describe('resolveSelfStatuslineCommand', () => {
+    function makeScript(...segments: string[]): string {
+        const scriptPath = path.join(testClaudeConfigDir, ...segments);
+        fs.mkdirSync(path.dirname(scriptPath), { recursive: true });
+        fs.writeFileSync(scriptPath, '', 'utf-8');
+        return scriptPath;
+    }
+
+    // Mirrors the implementation's platform quoting so resolution-focused tests stay
+    // green when the temp dir itself contains spaces (e.g. Windows user profiles).
+    function q(filePath: string): string {
+        if (process.platform === 'win32') {
+            return /[\s&()<>|^"]/.test(filePath) ? `"${filePath.replace(/"/g, '""')}"` : filePath;
+        }
+        return /[\s()[\];&#|'"\\$`]/.test(filePath) ? `'${filePath.replace(/'/g, '\'\\\'\'')}'` : filePath;
+    }
+
+    it('should build an absolute execPath + script command', () => {
+        const scriptPath = makeScript('dist', 'mochiapi-statusline.js');
+        expect(resolveSelfStatuslineCommand(scriptPath, '/usr/bin/node')).toBe(`/usr/bin/node ${q(path.resolve(scriptPath))}`);
+    });
+
+    it('should quote script paths containing spaces', () => {
+        const scriptPath = makeScript('My Apps', 'mochiapi-statusline.js');
+        const command = resolveSelfStatuslineCommand(scriptPath, '/usr/bin/node');
+        const quoteChar = process.platform === 'win32' ? '"' : '\'';
+        expect(command.startsWith('/usr/bin/node ')).toBe(true);
+        expect(command.slice('/usr/bin/node '.length).startsWith(quoteChar)).toBe(true);
+        expect(command).toContain('My Apps');
+    });
+
+    it('should quote an execPath containing spaces', () => {
+        const scriptPath = makeScript('dist', 'mochiapi-statusline.js');
+        const execPath = '/opt/my node/bin/node';
+        const quotedExec = process.platform === 'win32' ? `"${execPath}"` : `'${execPath}'`;
+        expect(resolveSelfStatuslineCommand(scriptPath, execPath)).toBe(`${quotedExec} ${q(path.resolve(scriptPath))}`);
+    });
+
+    it.skipIf(process.platform === 'win32')('should resolve extension-less bin symlinks to the real script path', () => {
+        const scriptPath = makeScript('lib', 'mochiapi-statusline.js');
+        const linkPath = path.join(testClaudeConfigDir, 'mochiapi-statusline');
+        fs.symlinkSync(scriptPath, linkPath);
+        const resolved = fs.realpathSync(scriptPath);
+        expect(resolveSelfStatuslineCommand(linkPath, '/usr/bin/node')).toBe(`/usr/bin/node ${q(resolved)}`);
+    });
+
+    it.skipIf(process.platform === 'win32')('should keep version-stable directory symlinks unresolved for direct script paths', () => {
+        // Models nvm-windows-style junctions: realpathing them would pin the command
+        // to a versioned directory that breaks on the next node version switch.
+        makeScript('versions', 'v20.19.0', 'dist', 'mochiapi-statusline.js');
+        const linkDir = path.join(testClaudeConfigDir, 'current');
+        fs.symlinkSync(path.join(testClaudeConfigDir, 'versions', 'v20.19.0'), linkDir);
+        const viaLink = path.join(linkDir, 'dist', 'mochiapi-statusline.js');
+        expect(resolveSelfStatuslineCommand(viaLink, '/usr/bin/node')).toBe(`/usr/bin/node ${q(viaLink)}`);
+    });
+
+    it('should fall back to the bare command when the script arg is empty', () => {
+        expect(resolveSelfStatuslineCommand('', '/usr/bin/node')).toBe(MOCHIAPI_STATUSLINE_COMMANDS.SELF_MANAGED);
+    });
+
+    it('should fall back to the bare command when the script does not exist', () => {
+        const missing = path.join(testClaudeConfigDir, 'nope', 'mochiapi-statusline.js');
+        expect(resolveSelfStatuslineCommand(missing, '/usr/bin/node')).toBe(MOCHIAPI_STATUSLINE_COMMANDS.SELF_MANAGED);
+    });
+
+    it('should fall back to the bare command for transient npx cache paths', () => {
+        const scriptPath = makeScript('_npx', 'abc123', 'node_modules', '.bin', 'mochiapi-statusline');
+        expect(resolveSelfStatuslineCommand(scriptPath, '/usr/bin/node')).toBe(MOCHIAPI_STATUSLINE_COMMANDS.SELF_MANAGED);
+    });
+
+    it('should fall back to the bare command for transient bunx cache paths', () => {
+        const scriptPath = makeScript('bunx-501-mochiapi-statusline@latest', 'node_modules', '.bin', 'mochiapi-statusline');
+        expect(resolveSelfStatuslineCommand(scriptPath, '/usr/bin/node')).toBe(MOCHIAPI_STATUSLINE_COMMANDS.SELF_MANAGED);
+    });
+
+    it('should fall back to the bare command for transient pnpm dlx cache paths', () => {
+        const scriptPath = makeScript('pnpm', 'dlx', 'abc123', 'node_modules', 'mochiapi-statusline', 'dist', 'mochiapi-statusline.js');
+        expect(resolveSelfStatuslineCommand(scriptPath, '/usr/bin/node')).toBe(MOCHIAPI_STATUSLINE_COMMANDS.SELF_MANAGED);
+    });
+
+    it('should fall back to the bare command for transient yarn dlx temp paths', () => {
+        const scriptPath = makeScript('xfs-1a2b3c', 'dlx-9999', 'node_modules', 'mochiapi-statusline', 'dist', 'mochiapi-statusline.js');
+        expect(resolveSelfStatuslineCommand(scriptPath, '/usr/bin/node')).toBe(MOCHIAPI_STATUSLINE_COMMANDS.SELF_MANAGED);
     });
 });
 

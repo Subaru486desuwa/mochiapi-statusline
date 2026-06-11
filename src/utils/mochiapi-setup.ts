@@ -3,8 +3,11 @@ import * as path from 'path';
 import { createInterface } from 'readline/promises';
 
 import {
+    MOCHIAPI_STATUSLINE_COMMANDS,
     getClaudeSettingsPath,
+    isKnownCommand,
     loadClaudeSettings,
+    resolveSelfStatuslineCommand,
     saveClaudeSettings
 } from './claude-settings';
 import { getConfigPath } from './config';
@@ -21,7 +24,6 @@ function readEnv(name: string): string | undefined {
     return v?.trim() ? v.trim() : undefined;
 }
 
-const STATUSLINE_COMMAND = 'mochiapi-statusline';
 const MOCHI_BALANCE_TYPE = 'mochiapi-balance';
 const MOCHI_DAILY_TYPE = 'mochiapi-daily-spend';
 const MOCHI_SUB_TYPE = 'mochiapi-subscription-balance';
@@ -204,19 +206,32 @@ async function writeStatuslineSettings(opts: SetupOptions): Promise<{ result: St
     return { result: 'appended' };
 }
 
-async function wireClaudeStatusLine(): Promise<'wired' | 'already' | 'replaced'> {
+async function wireClaudeStatusLine(): Promise<{ result: 'wired' | 'already' | 'replaced'; command: string }> {
     const settings = await loadClaudeSettings({ logErrors: false });
+    // Windows GUI launches often miss the npm global bin dir on PATH, so wire an
+    // absolute command there. Elsewhere the bare command is PATH-resolved at spawn
+    // time and survives node upgrades (e.g. Homebrew keg paths would not).
+    const command = process.platform === 'win32'
+        ? resolveSelfStatuslineCommand()
+        : MOCHIAPI_STATUSLINE_COMMANDS.SELF_MANAGED;
     const current = settings.statusLine?.command;
-    if (current === STATUSLINE_COMMAND) {
-        return 'already';
+    // Never downgrade a working known command to the bare fallback.
+    if (current === command || (command === MOCHIAPI_STATUSLINE_COMMANDS.SELF_MANAGED && !!current && isKnownCommand(current))) {
+        return { result: 'already', command: current };
     }
     const wasSet = !!current;
+    const refreshInterval = settings.statusLine?.refreshInterval;
     const next = {
         ...settings,
-        statusLine: { type: 'command' as const, command: STATUSLINE_COMMAND, padding: 0 }
+        statusLine: {
+            type: 'command' as const,
+            command,
+            padding: 0,
+            ...(refreshInterval !== undefined ? { refreshInterval } : {})
+        }
     };
     await saveClaudeSettings(next);
-    return wasSet ? 'replaced' : 'wired';
+    return { result: wasSet ? 'replaced' : 'wired', command };
 }
 
 export async function runMochiApiSetup(): Promise<void> {
@@ -298,7 +313,7 @@ export async function runMochiApiSetup(): Promise<void> {
 
     if (!opts.skipClaudeWire) {
         try {
-            const result = await wireClaudeStatusLine();
+            const { result, command } = await wireClaudeStatusLine();
             const cPath = getClaudeSettingsPath();
             if (result === 'wired')
                 console.log(`✓ Claude Code statusLine wired → ${cPath}`);
@@ -306,6 +321,7 @@ export async function runMochiApiSetup(): Promise<void> {
                 console.log(`✓ Claude Code statusLine replaced with mochiapi-statusline → ${cPath}`);
             else
                 console.log(`• Claude Code statusLine already points to mochiapi-statusline → ${cPath}`);
+            console.log(`  command: ${command}`);
         } catch (err) {
             console.error(`✗ Claude Code settings.json patch failed: ${err instanceof Error ? err.message : String(err)}`);
         }
