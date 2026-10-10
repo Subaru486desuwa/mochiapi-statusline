@@ -25,7 +25,7 @@ function baseCache(overrides: Partial<MochiApiCache>): MochiApiCache {
     };
 }
 
-function renderWith(cache: MochiApiCache): string | null {
+function renderWith(cache: MochiApiCache, version = 4): string | null {
     vi.spyOn(mochiapi, 'loadMochiConfig').mockReturnValue({
         baseUrl: 'https://mochiapi.com',
         token: 'sk-test',
@@ -37,7 +37,7 @@ function renderWith(cache: MochiApiCache): string | null {
     return new MochiApiSubscriptionBalanceWidget().render(
         { id: 'sub', type: 'mochiapi-subscription-balance', rawValue: true },
         {},
-        DEFAULT_SETTINGS
+        { ...DEFAULT_SETTINGS, version }
     );
 }
 
@@ -46,12 +46,16 @@ describe('MochiApiSubscriptionBalanceWidget', () => {
         vi.restoreAllMocks();
     });
 
-    it('renders ∞ for an unlimited subscription plan', () => {
-        const rendered = renderWith(baseCache({ subscriptionUnlimited: true }));
-        expect(rendered).toBe('∞');
+    it('preserves legacy subscription rendering while layout upgrade waits for the backend', () => {
+        expect(renderWith(baseCache({ subscriptionTotalUsd: 100, subscriptionUsedUsd: 25, subscriptionUnlimited: false }), 3)).toBe('25%');
     });
 
-    it('renders used% with a reset countdown (MAX Pro weekly sample)', () => {
+    it('does not label a legacy unlimited plan as Claude', () => {
+        const rendered = renderWith(baseCache({ subscriptionUnlimited: true }));
+        expect(rendered).toBe('数据待升级');
+    });
+
+    it('does not label a legacy finite plan as Claude', () => {
         const resetAt = Math.floor(Date.now() / 1000) + ((5 * 24 + 12) * 3600) + 120;
         const rendered = renderWith(baseCache({
             subscriptionTotalUsd: 95,
@@ -59,25 +63,25 @@ describe('MochiApiSubscriptionBalanceWidget', () => {
             subscriptionResetAt: resetAt,
             subscriptionUnlimited: false
         }));
-        expect(rendered).toBe('4% · 5d12h');
+        expect(rendered).toBe('数据待升级');
     });
 
-    it('renders used% only when there is no reset time', () => {
+    it('requires explicit Claude identity even without a reset time', () => {
         const rendered = renderWith(baseCache({
             subscriptionTotalUsd: 95,
             subscriptionUsedUsd: 47.5, // 50%
             subscriptionResetAt: 0,
             subscriptionUnlimited: false
         }));
-        expect(rendered).toBe('50%');
+        expect(rendered).toBe('数据待升级');
     });
 
-    it('renders - when there is no active subscription', () => {
+    it('does not infer absent Claude subscription from legacy zero amounts', () => {
         const rendered = renderWith(baseCache({
             subscriptionTotalUsd: 0,
             subscriptionUsedUsd: 0,
             subscriptionUnlimited: false
         }));
-        expect(rendered).toBe('-');
+        expect(rendered).toBe('数据待升级');
     });
 });

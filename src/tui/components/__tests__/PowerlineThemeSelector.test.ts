@@ -73,6 +73,7 @@ describe('PowerlineThemeSelector helpers', () => {
     it('copies a built-in theme into widget colors and switches to custom mode', () => {
         const settings = {
             ...DEFAULT_SETTINGS,
+            lines: [[{ id: 'model', type: 'model' }, { id: 'sep', type: 'separator' }, { id: 'ctx', type: 'context-length' }]],
             colorLevel: 2 as const,
             powerline: {
                 ...DEFAULT_SETTINGS.powerline,

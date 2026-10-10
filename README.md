@@ -35,7 +35,7 @@ bash / zsh / fish / PowerShell 7+ / cmd.exe 都能跑，`&&` 把装包和 setup 
 
 1. token + base URL → `~/.config/mochiapi-statusline/config.json`（Windows 是 `%APPDATA%\mochiapi-statusline\config.json`）
 2. 探测一次 balance 接口，确认 token 有效
-3. 把推荐的 **Mochi 两行 Powerline 布局**写入 `~/.config/mochiapi-statusline/settings.json`（已有布局会把 Mochi 计费行追加进去）
+3. 把推荐的 **Mochi 三行 Powerline 布局**写入 `~/.config/mochiapi-statusline/settings.json`（已有布局会把 Mochi 计费行追加进去）
 4. 把 Claude Code 的 `~/.claude/settings.json` 里 `statusLine.command` 指向 `mochiapi-statusline`；**Windows 上写入的是当前安装的绝对路径**（如 `"C:\Program Files\nodejs\node.exe" C:\...\dist\mochiapi-statusline.js`），这样即使 Claude 客户端启动时的 PATH 里没有 npm 全局 bin 目录（GUI 启动常见），状态栏也能正常拉起
 
 开一个新的 Claude Code 会话，状态栏就有了。
@@ -65,26 +65,32 @@ npm install -g https://github.com/Subaru486desuwa/mochiapi-statusline/archive/re
 
 ## 默认布局长这样
 
-两行 Powerline，Mochi 配色（图中是实际效果）：
+三行 Powerline，金额默认采用剩余/总额：
 
-- **第一行** — `模型 / Opus 4.7 (1M context) / 上下文 / 50.7k`，仓库内追加 `<分支> / <改动>`，仓库外自动隐藏
-- **第二行** — `用户余额 / $98.43 / 今日消耗 / $11.66 / TPS / 6.4 t/s`（MochiAPI 账户余额 + 今日花费 + token 输出速率）
+- 第一行：模型、上下文、分支和改动。
+- 第二行：钱包余额、今日消耗。
+- 第三行：本站 Claude 套餐的日剩额、总剩额、日重置/周期重置及到期时间。
 
-数值后面带 `*` 表示缓存值比 `2 × refreshIntervalSec`（默认 60 秒）旧，通常是瞬时网络抖动，后台 refresher 在重试。widget 继续显示上一次成功值。
+新版确认当前连接支持 Claude 套餐摘要后，会自动把旧布局迁移为上述布局。旧服务端或连接尚未验证时保留旧布局；旧订阅项不会被标成 Claude。先保存 `settings.json.pre-v4-*.bak` 备份，再校验并原子替换。重复运行不会再次迁移。
 
-`mochiapi-subscription` widget（三合一：`余额 $X.XX · 今日 $Y.YY · 订阅 $Z.ZZ/∞`）仍然可用，只是不在默认布局——大多数 MochiAPI 中转用户订阅是 `∞`，没意义。需要的话 TUI 里手动加。
+额度跟随 Claude Code 当前连接的 `ANTHROPIC_BASE_URL` 和 `ANTHROPIC_AUTH_TOKEN`（或 `ANTHROPIC_API_KEY`）。支持本站 `mochiapi.com` 和 `api.mochiapi.com`；URL 与 token 必须成对，缓存按连接隔离。运行时不使用 setup 中旧账户的 token 补齐缺失连接，非本站连接不展示本站计费项。
+
+Claude 套餐是当前账户持有的套餐概览。即使连接分组是 Codex2cc，也只展示 Claude 套餐；它不表示 Codex2cc 请求会扣 Claude 额度。GPT 套餐额度不展示。结转已包含在总额度里，不重复相加。
+
+在 TUI 中选择 **MochiAPI Claude Quota**，按 `p` 切换数值/已用百分比，保存后生效。默认是数值。数值后面的 `*` 表示旧缓存或刷新失败，同一连接仍显示其上次成功值。
 
 ## MochiAPI 自带的 widget
 
-三个 widget 共用一次 `/api/user/dashboard/balance` 请求的缓存：
+四个 widget 共用 `/api/usage/token/` 的连接缓存：
 
 | Widget 类型 | 渲染 | 默认色 |
 |---|---|---|
-| `mochiapi-balance` | 账户剩余余额 — `$X.XX` 或 `∞`（无限账户） | cyan |
-| `mochiapi-daily-spend` | 今日花费 — `$X.XX` | magenta |
-| `mochiapi-subscription` | `余额 $X.XX · 今日 $Y.YY · 订阅 $Z.ZZ/∞`（不在默认布局） | cyan |
+| `mochiapi-balance` | 钱包剩余金额 | cyan |
+| `mochiapi-daily-spend` | 今日消耗金额 | magenta |
+| `mochiapi-subscription-balance` | Claude 日余/总余金额与期限，百分比可选 | green |
+| `mochiapi-subscription` | 钱包、今日消耗与 Claude 套餐的合并展示 | cyan |
 
-缓存通过 detached 子进程每 `refreshIntervalSec`（默认 30 秒）刷新一次。
+没有有效 Claude 套餐显示“未订阅”；耗尽显示0；无限额度显示∞。旧接口缺少明确 Claude 套餐摘要时显示“数据待升级”，查询失败显示“数据不可用”，不会把 GPT 套餐或未知额度误标为 Claude。
 
 ## CLI
 
@@ -121,7 +127,7 @@ npm uninstall -g mochiapi-statusline
 |  | macOS / Linux | Windows |
 |---|---|---|
 | MochiAPI token + baseUrl | `~/.config/mochiapi-statusline/config.json` | `%APPDATA%\mochiapi-statusline\config.json` |
-| 余额缓存 | `~/.cache/mochiapi-statusline/balance.json` | `%LOCALAPPDATA%\mochiapi-statusline\cache\balance.json` |
+| 余额缓存 | `~/.cache/mochiapi-statusline/balance-<连接哈希>.json` | `%LOCALAPPDATA%\mochiapi-statusline\cache\balance-<连接哈希>.json` |
 | 状态栏布局 | `~/.config/mochiapi-statusline/settings.json` | `%USERPROFILE%\.config\mochiapi-statusline\settings.json` |
 | Claude Code | `~/.claude/settings.json` | `%USERPROFILE%\.claude\settings.json` |
 
@@ -145,26 +151,27 @@ echo '{"session_id":"test","model":{"id":"claude-sonnet-4-6","display_name":"Son
 
 ## 接口契约
 
-| 路径 | 返回 |
+首先读取 `GET ${baseUrl}/api/usage/token/`，Bearer 鉴权，不需要面板 cookie 或登录凭据。旧的钱包兼容路径仍保留。后端需提供新增 `data.claude_subscription` 摘要才能显示 Claude 金额。
+
+| 字段 | 用途 |
 |---|---|
-| `GET ${baseUrl}/api/user/dashboard/balance` | 账户字段 + 今日花费（一次请求喂三个 widget） |
+| `user_remain_quota_usd` | 钱包现金余额 |
+| `today_used_quota_usd`（如有） | 今日消耗；缺失时仅按同一连接的累计差估计 |
+| `claude_subscription.status` | `active` / `none` / `unavailable` |
+| `claude_subscription.plans[]` | 所属账户生效的 Claude 套餐，`group=vip1_sub` |
+| `total_usd / used_usd / remaining_usd / unlimited` | 总额度，已包含结转 |
+| `daily_total_usd / daily_used_usd / daily_remaining_usd / daily_unlimited` | 每日额度，与总额度分别限制 |
+| `daily_reset_at / reset_at / expires_at` | 日重置、周期重置、到期，Unix 秒 |
 
-Bearer 鉴权（`Authorization: Bearer sk-...`），不用 cookie，不用 session。
+重置后的有效额度和在途预留由服务端计算，客户端只格式化。旧 `subscription_*` 字段继续兼容旧客户端，新版不会凭这些未标明产品线的字段推断 Claude 套餐。
 
-从响应里读的字段：
-
-| API 字段 | 用途 |
-|---|---|
-| 直接余额字段（`user_balance_usd` / `user_remain_quota_usd` / `balance_usd` 等，存在时） | 余额 widget（首选路径） |
-| `data.user_quota_usd` − `data.user_used_quota_usd` | 余额 widget（直接字段缺失时的回退） |
-| `data.today_used_quota_usd` | 今日花费 widget |
-| `data.token_remain_quota_usd` + `data.token_unlimited` | 订阅 widget |
+开发验证使用 `bun run test`（Vitest）、`bun run lint` 与 `bun run build`。
 
 ## 致谢
 
 底层状态栏引擎 fork 自 [sirmalloc/ccstatusline](https://github.com/sirmalloc/ccstatusline)（MIT，© Matthew Breedlove）。MochiAPI 部分的增量只有：
 
-- `mochiapi-balance` / `mochiapi-daily-spend` / `mochiapi-subscription` 三个 widget
+- `mochiapi-balance` / `mochiapi-daily-spend` / `mochiapi-subscription` 四个 widget
 - `--mochiapi-setup` / `--mochiapi-refresh` 两个 CLI flag
 - 一键 setup（写 config + 写布局 + 接 Claude Code `statusLine.command`）
 

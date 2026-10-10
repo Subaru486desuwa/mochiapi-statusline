@@ -13,7 +13,8 @@ import {
     migrateConfig,
     needsMigration
 } from './migrations';
-import { upgradeLegacyWidgetTypes } from './widgets';
+import { hasClaudeQuotaContract } from './mochiapi';
+import { upgradeLegacyWidgetTypes } from './widget-type-aliases';
 
 // Use fs.promises directly (always available in modern Node.js)
 const readFile = fs.promises.readFile;
@@ -61,6 +62,47 @@ function getSettingsPaths(): SettingsPaths {
 async function writeSettingsJson(settings: unknown, paths: SettingsPaths): Promise<void> {
     await mkdir(paths.configDir, { recursive: true });
     await writeFile(paths.settingsPath, JSON.stringify(settings, null, 2), 'utf-8');
+}
+
+async function persistMigration(settings: Settings, original: string, paths: SettingsPaths): Promise<boolean> {
+    const lockPath = `${paths.settingsPath}.migration.lock`;
+    let lock: fs.promises.FileHandle;
+    try {
+        lock = await fs.promises.open(lockPath, 'wx', 0o600);
+    } catch (error) {
+        if (!(error instanceof Error) || !('code' in error) || error.code !== 'EEXIST')
+            throw error;
+        const ownerText = await readFile(lockPath, 'utf8').catch(() => '');
+        const owner = Number(ownerText);
+        let abandoned = false;
+        if (Number.isInteger(owner) && owner > 0) {
+            try { process.kill(owner, 0); } catch (probeError) {
+                abandoned = probeError instanceof Error && 'code' in probeError && probeError.code === 'ESRCH';
+            }
+        } else {
+            const stat = await fs.promises.stat(lockPath);
+            abandoned = Date.now() - stat.mtimeMs > 30_000;
+        }
+        if (!abandoned || await readFile(lockPath, 'utf8') !== ownerText)
+            return false;
+        await fs.promises.unlink(lockPath);
+        return await persistMigration(settings, original, paths);
+    }
+    const temporary = `${paths.settingsPath}.${process.pid}.tmp`;
+    try {
+        await lock.writeFile(String(process.pid));
+        if (await readFile(paths.settingsPath, 'utf8') !== original)
+            return false;
+        const backup = `${paths.settingsPath}.pre-v${CURRENT_VERSION}-${Date.now()}-${process.pid}.bak`;
+        await writeFile(backup, original, { flag: 'wx', mode: 0o600 });
+        await writeFile(temporary, JSON.stringify(settings, null, 2), { flag: 'wx', mode: 0o600 });
+        await fs.promises.rename(temporary, paths.settingsPath);
+        return true;
+    } finally {
+        await fs.promises.unlink(temporary).catch(() => undefined);
+        await lock.close();
+        await fs.promises.unlink(lockPath).catch(() => undefined);
+    }
 }
 
 async function backupBadSettings(paths: SettingsPaths): Promise<void> {
@@ -136,6 +178,9 @@ export async function loadSettings(): Promise<Settings> {
             return await recoverWithDefaults(paths);
         }
 
+        // Keep the working v3 layout until the current connection confirms support.
+        const targetVersion = hasClaudeQuotaContract() ? CURRENT_VERSION : Math.min(3, CURRENT_VERSION);
+        let migrated = false;
         // Check if this is a v1 config (no version field)
         const hasVersion = typeof rawData === 'object' && rawData !== null && 'version' in rawData;
         if (!hasVersion) {
@@ -147,12 +192,12 @@ export async function loadSettings(): Promise<Settings> {
             }
 
             // Migrate v1 to current version and save the migrated settings back to disk
-            rawData = migrateConfig(rawData, CURRENT_VERSION);
-            await writeSettingsJson(rawData, paths);
-        } else if (needsMigration(rawData, CURRENT_VERSION)) {
+            rawData = migrateConfig(rawData, targetVersion);
+            migrated = true;
+        } else if (needsMigration(rawData, targetVersion)) {
             // Handle migrations for versioned configs (v2+) and save the migrated settings back to disk
-            rawData = migrateConfig(rawData, CURRENT_VERSION);
-            await writeSettingsJson(rawData, paths);
+            rawData = migrateConfig(rawData, targetVersion);
+            migrated = true;
         }
 
         // At this point, data should be in current format with version field
@@ -163,6 +208,19 @@ export async function loadSettings(): Promise<Settings> {
             return await recoverWithDefaults(paths);
         }
 
+        if (migrated) {
+            let persisted = false;
+            try {
+                persisted = await persistMigration(result.data, content, paths);
+            } catch {
+                console.error('Layout migration could not be saved; original settings retained');
+            }
+            if (!persisted) {
+                const retained = SettingsSchema.safeParse(JSON.parse(await readFile(paths.settingsPath, 'utf8')));
+                if (retained.success)
+                    return { ...retained.data, lines: upgradeLegacyWidgetTypes(retained.data.lines) };
+            }
+        }
         return {
             ...result.data,
             lines: upgradeLegacyWidgetTypes(result.data.lines)

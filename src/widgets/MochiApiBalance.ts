@@ -34,18 +34,18 @@ export class MochiApiBalanceWidget implements Widget {
         const labeled = !_item.rawValue;
 
         if (context.isPreview) {
-            return labeled ? 'Mochi: $8.42' : '$8.42';
+            return labeled ? '钱包 $8.42' : '$8.42';
         }
 
         const cfg = loadMochiConfig();
         if (!cfg) {
-            return labeled ? 'Mochi: cfg?' : 'cfg?';
+            return null;
         }
-        const cache = readCache();
+        const cache = readCache(cfg);
         maybeRefreshInBackground(cfg, cache);
         const view = viewFromCache(cache, cfg);
         if (!view)
-            return labeled ? 'Mochi: ...' : '...';
+            return labeled ? '钱包 ...' : '...';
 
         let body: string;
         if (view.balanceUsd !== null) {
@@ -57,7 +57,7 @@ export class MochiApiBalanceWidget implements Widget {
         }
 
         const decorated = view.stale ? `${body}*` : body;
-        return labeled ? `Mochi: ${decorated}` : decorated;
+        return labeled ? `钱包 ${decorated}` : decorated;
     }
 
     supportsRawValue(): boolean { return true; }

@@ -2,6 +2,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { createInterface } from 'readline/promises';
 
+import { CURRENT_VERSION } from '../types/Settings';
+
 import {
     MOCHIAPI_STATUSLINE_COMMANDS,
     getClaudeSettingsPath,
@@ -14,10 +16,11 @@ import { getConfigPath } from './config';
 import {
     MOCHI_CONFIG_PATH,
     fetchBalance,
-    loadMochiConfig,
+    loadSavedMochiConfig,
     saveMochiConfig,
     writeCache
 } from './mochiapi';
+import { makeMochiLayout } from './mochiapi-layout';
 
 function readEnv(name: string): string | undefined {
     const v = process.env[name];
@@ -29,14 +32,9 @@ const MOCHI_DAILY_TYPE = 'mochiapi-daily-spend';
 const MOCHI_SUB_TYPE = 'mochiapi-subscription-balance';
 
 const LABEL_FG = 'hex:111827';
-const MODEL_BG = 'hex:7AA2F7';
-const CONTEXT_BG = 'hex:414868';
-const GIT_BG = 'hex:BB9AF7';
-const CHANGES_BG = 'hex:F7768E';
 const SPEED_BG = 'hex:7DCFFF';
 const BALANCE_BG = 'hex:2AC3DE';
 const SPEND_BG = 'hex:FF9E64';
-const DARK_FG = 'hex:C0CAF5';
 
 interface SetupOptions {
     skipStatusline?: boolean;
@@ -53,37 +51,7 @@ function parseFlags(argv: readonly string[]): SetupOptions {
 }
 
 function buildRecommendedSettings(): unknown {
-    return {
-        version: 3,
-        lines: [
-            [
-                { id: 'L1-lbl-model', type: 'custom-text', color: LABEL_FG, backgroundColor: MODEL_BG, bold: true, customText: '模型', merge: 'no-padding' },
-                { id: 'L1-model', type: 'model', color: LABEL_FG, backgroundColor: MODEL_BG, bold: true, rawValue: true, metadata: { keepContext: 'true' } },
-                { id: 'L1-lbl-ctx', type: 'custom-text', color: DARK_FG, backgroundColor: CONTEXT_BG, bold: true, customText: '上下文', merge: 'no-padding' },
-                { id: 'L1-ctx', type: 'context-length', color: DARK_FG, backgroundColor: CONTEXT_BG, bold: true, rawValue: true },
-                { id: 'L1-branch', type: 'git-branch', color: LABEL_FG, backgroundColor: GIT_BG, bold: true, rawValue: true, metadata: { hideNoGit: 'true' } },
-                { id: 'L1-changes', type: 'git-changes', color: LABEL_FG, backgroundColor: CHANGES_BG, bold: true, rawValue: true, metadata: { hideNoGit: 'true' } }
-            ],
-            makeMochiBillingItems('L2')
-        ],
-        flexMode: 'full',
-        compactThreshold: 60,
-        colorLevel: 2,
-        defaultPadding: ' ',
-        inheritSeparatorColors: false,
-        globalBold: false,
-        minimalistMode: false,
-        powerline: {
-            enabled: true,
-            separators: ['\uE0B0'],
-            separatorInvertBackground: [false],
-            startCaps: ['\uE0B6'],
-            endCaps: ['\uE0B4'],
-            theme: 'custom',
-            autoAlign: false,
-            continueThemeAcrossLines: false
-        }
-    };
+    return makeMochiLayout(CURRENT_VERSION);
 }
 
 interface MochiLineItem { id?: unknown; type?: unknown; [key: string]: unknown }
@@ -241,7 +209,7 @@ export async function runMochiApiSetup(): Promise<void> {
     const envBase = readEnv('MOCHIAPI_BASE_URL');
     const envInterval = readEnv('MOCHIAPI_REFRESH_SEC');
 
-    const existing = loadMochiConfig();
+    const existing = loadSavedMochiConfig();
     let token = envToken;
     let baseUrl = envBase ?? existing?.baseUrl ?? 'https://mochiapi.com';
     let refresh = envInterval ? Number(envInterval) : (existing?.refreshIntervalSec ?? 30);
@@ -291,14 +259,16 @@ export async function runMochiApiSetup(): Promise<void> {
         process.exitCode = 2;
     }
 
-    if (!opts.skipStatusline) {
+    if (!opts.skipStatusline && (!cache.ok || !cache.claudeSubscription)) {
+        console.log('• 当前连接暂不支持 Claude 套餐额度，保留现有布局；后台就绪后会自动升级。');
+    } else if (!opts.skipStatusline) {
         try {
             const { result, backupPath } = await writeStatuslineSettings(opts);
             const ccPath = getConfigPath();
             if (result === 'created') {
-                console.log(`✓ MochiAPI Statusline layout (mochi 2-line) → ${ccPath}`);
+                console.log(`✓ MochiAPI Statusline layout (mochi 3-line) → ${ccPath}`);
             } else if (result === 'replaced') {
-                console.log(`✓ MochiAPI Statusline layout reset to mochi 2-line → ${ccPath}`);
+                console.log(`✓ MochiAPI Statusline layout reset to mochi 3-line → ${ccPath}`);
                 if (backupPath)
                     console.log(`  previous file backed up → ${backupPath}`);
             } else if (result === 'appended') {

@@ -1,6 +1,7 @@
 import type { WidgetItem } from '../types/Widget';
 
 import { generateGuid } from './guid';
+import { makeMochiLayout } from './mochiapi-layout';
 
 // Type for migration functions
 interface Migration {
@@ -170,6 +171,12 @@ export const migrations: Migration[] = [
 
             return migrated;
         }
+    },
+    {
+        fromVersion: 3,
+        toVersion: 4,
+        description: 'Mochi wallet and Claude quota numeric layout',
+        migrate: () => ({ ...makeMochiLayout(4) })
     }
 ];
 

@@ -47,6 +47,18 @@ function createCatalog(entries: (Partial<WidgetCatalogEntry> & Pick<WidgetCatalo
 }
 
 describe('items-editor input handlers', () => {
+    it('toggles Claude quota percentages without removing the widget', () => {
+        const onUpdate = vi.fn();
+        handleNormalInputMode({
+            input: 'p', key: {}, widgets: [{ id: 'claude', type: 'mochiapi-subscription-balance' }],
+            selectedIndex: 0, separatorChars: ['|'], onBack: vi.fn(), onUpdate,
+            setSelectedIndex: vi.fn(), setMoveMode: vi.fn(), setShowClearConfirm: vi.fn(),
+            openWidgetPicker: vi.fn(), setCustomEditorWidget: vi.fn(),
+            getCustomKeybindsForWidget: (impl, widget) => impl.getCustomKeybinds?.(widget) ?? []
+        });
+        expect(onUpdate).toHaveBeenCalledWith([expect.objectContaining({ id: 'claude', metadata: { quotaDisplay: 'percent' } })]);
+    });
+
     it('normalizes picker state with valid fallback category and selected type', () => {
         const widgetCatalog = createCatalog([
             { type: 'git-branch', displayName: 'Git Branch', category: 'Git' }

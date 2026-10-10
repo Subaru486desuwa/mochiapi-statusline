@@ -13,6 +13,8 @@ import {
 const require = createRequire(import.meta.url);
 const { execFileSync: realExecFileSync } = require('node:child_process') as { execFileSync: typeof childProcess.execFileSync };
 
+const bunExecutable = realExecFileSync('bun', ['--print', 'process.execPath'], { encoding: 'utf8' }).trim();
+
 interface UsageProbeResult {
     first: Record<string, unknown>;
     second: Record<string, unknown>;
@@ -185,7 +187,7 @@ process.stdout.write(JSON.stringify({
     }
 
     function runProbe(options: ProbeOptions): UsageProbeResult {
-        const output = realExecFileSync(process.execPath, [probeScriptPath], {
+        const output = realExecFileSync(bunExecutable, [probeScriptPath], {
             encoding: 'utf8',
             env: {
                 ...process.env,

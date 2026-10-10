@@ -15,7 +15,7 @@ describe('MochiApiSubscriptionWidget', () => {
         vi.restoreAllMocks();
     });
 
-    it('renders balance, today spend, and subscription usage% with countdown', () => {
+    it('keeps wallet and today spend when legacy plan identity is unavailable', () => {
         const resetAt = Math.floor(Date.now() / 1000) + ((5 * 24 + 12) * 3600) + 120;
         vi.spyOn(mochiapi, 'loadMochiConfig').mockReturnValue({
             baseUrl: 'https://mochiapi.com',
@@ -44,10 +44,10 @@ describe('MochiApiSubscriptionWidget', () => {
             DEFAULT_SETTINGS
         );
 
-        expect(rendered).toBe('余额 $1.540 · 今日 $0.277 · 订阅 4% · 5d12h');
+        expect(rendered).toBe('余额 $1.540 · 今日 $0.277 · Claude 数据待升级');
     });
 
-    it('shows ∞ for an unlimited subscription without replacing the user balance', () => {
+    it('keeps numeric wallet when a legacy unlimited plan cannot be identified', () => {
         vi.spyOn(mochiapi, 'loadMochiConfig').mockReturnValue({
             baseUrl: 'https://mochiapi.com',
             token: 'sk-test',
@@ -72,10 +72,10 @@ describe('MochiApiSubscriptionWidget', () => {
             DEFAULT_SETTINGS
         );
 
-        expect(rendered).toBe('余额 $9.254 · 今日 $0.277 · 订阅 ∞');
+        expect(rendered).toBe('余额 $9.254 · 今日 $0.277 · Claude 数据待升级');
     });
 
-    it('shows - when the account has no active subscription', () => {
+    it('does not infer no Claude plan from legacy zero fields', () => {
         vi.spyOn(mochiapi, 'loadMochiConfig').mockReturnValue({
             baseUrl: 'https://mochiapi.com',
             token: 'sk-test',
@@ -101,6 +101,6 @@ describe('MochiApiSubscriptionWidget', () => {
             DEFAULT_SETTINGS
         );
 
-        expect(rendered).toBe('余额 $9.254 · 今日 $0.277 · 订阅 -');
+        expect(rendered).toBe('余额 $9.254 · 今日 $0.277 · Claude 数据待升级');
     });
 });

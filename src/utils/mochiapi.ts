@@ -1,8 +1,10 @@
 import { spawn } from 'child_process';
+import { createHash } from 'crypto';
 import {
     existsSync,
     mkdirSync,
     readFileSync,
+    renameSync,
     writeFileSync
 } from 'fs';
 import {
@@ -20,8 +22,31 @@ export interface MochiApiConfig {
     refreshIntervalSec: number;
 }
 
+export interface ClaudePlanQuota {
+    id: number;
+    totalUsd: number;
+    usedUsd: number;
+    remainingUsd: number;
+    unlimited: boolean;
+    dailyTotalUsd: number;
+    dailyUsedUsd: number;
+    dailyRemainingUsd: number;
+    dailyUnlimited: boolean;
+    dailyResetAt: number;
+    resetAt: number;
+    expiresAt: number;
+}
+
+export interface ClaudeQuotaSummary {
+    status: 'active' | 'none' | 'unavailable';
+    plans: ClaudePlanQuota[];
+}
+
 export interface MochiApiCache {
+    connectionId?: string;
+    claudeSubscription?: ClaudeQuotaSummary | null;
     fetchedAt: number;
+    lastAttemptAt?: number;
     ok: boolean;
     /** Direct account remaining balance (USD), when returned by the API. */
     directBalanceUsd: number | null;
@@ -76,7 +101,7 @@ function getMochiCacheDir(): string {
 export const MOCHI_CONFIG_PATH = join(getMochiConfigDir(), 'config.json');
 export const MOCHI_CACHE_PATH = join(getMochiCacheDir(), 'balance.json');
 
-export function loadMochiConfig(): MochiApiConfig | null {
+export function loadSavedMochiConfig(): MochiApiConfig | null {
     if (!existsSync(MOCHI_CONFIG_PATH))
         return null;
     try {
@@ -93,24 +118,67 @@ export function loadMochiConfig(): MochiApiConfig | null {
     }
 }
 
-export function saveMochiConfig(cfg: MochiApiConfig): void {
-    mkdirSync(dirname(MOCHI_CONFIG_PATH), { recursive: true });
-    writeFileSync(MOCHI_CONFIG_PATH, JSON.stringify(cfg, null, 2));
-}
-
-export function readCache(): MochiApiCache | null {
-    if (!existsSync(MOCHI_CACHE_PATH))
+/** Use the effective parent-process connection; never mix environment and saved credentials. */
+export function loadMochiConfig(): MochiApiConfig | null {
+    const base = process.env.ANTHROPIC_BASE_URL?.trim();
+    const auth = process.env.ANTHROPIC_AUTH_TOKEN?.trim();
+    const token = auth?.length ? auth : process.env.ANTHROPIC_API_KEY?.trim();
+    if (!base || !token)
         return null;
     try {
-        return JSON.parse(readFileSync(MOCHI_CACHE_PATH, 'utf8')) as MochiApiCache;
+        const url = new URL(base);
+        if (url.protocol !== 'https:' || url.username || url.password
+            || !['mochiapi.com', 'api.mochiapi.com'].includes(url.hostname) || url.port)
+            return null;
+        return { baseUrl: url.origin, token, refreshIntervalSec: loadSavedMochiConfig()?.refreshIntervalSec ?? DEFAULT_INTERVAL };
     } catch {
         return null;
     }
 }
 
+export function mochiConnectionId(cfg: MochiApiConfig): string {
+    return createHash('sha256').update(`${cfg.baseUrl}\0${cfg.token}`).digest('hex');
+}
+
+function cachePath(cfg: MochiApiConfig): string {
+    return join(getMochiCacheDir(), `balance-${mochiConnectionId(cfg)}.json`);
+}
+
+export function saveMochiConfig(cfg: MochiApiConfig): void {
+    mkdirSync(dirname(MOCHI_CONFIG_PATH), { recursive: true });
+    writeFileSync(MOCHI_CONFIG_PATH, JSON.stringify(cfg, null, 2), { mode: 0o600 });
+}
+
+export function readCache(cfg: MochiApiConfig | null = loadMochiConfig()): MochiApiCache | null {
+    if (!cfg)
+        return null;
+    try {
+        const cached = JSON.parse(readFileSync(cachePath(cfg), 'utf8')) as MochiApiCache;
+        return cached.connectionId === mochiConnectionId(cfg) ? cached : null;
+    } catch {
+        return null;
+    }
+}
+
+/** Upgrade layouts only after this exact connection confirms the additive contract. */
+export function hasClaudeQuotaContract(): boolean {
+    const cfg = loadMochiConfig();
+    const cache = readCache(cfg);
+    if (!cfg || !cache?.ok || !cache.claudeSubscription)
+        return false;
+    const age = Date.now() - cache.fetchedAt;
+    return age >= 0 && age <= Math.max(60, cfg.refreshIntervalSec * 2) * 1000;
+}
+
 export function writeCache(cache: MochiApiCache): void {
-    mkdirSync(dirname(MOCHI_CACHE_PATH), { recursive: true });
-    writeFileSync(MOCHI_CACHE_PATH, JSON.stringify(cache));
+    if (!cache.connectionId || !/^[a-f0-9]{64}$/.test(cache.connectionId))
+        return;
+    const directory = getMochiCacheDir();
+    mkdirSync(directory, { recursive: true });
+    const target = join(directory, `balance-${cache.connectionId}.json`);
+    const temporary = `${target}.${process.pid}.tmp`;
+    writeFileSync(temporary, JSON.stringify(cache), { mode: 0o600 });
+    renameSync(temporary, target);
 }
 
 async function httpGet(url: string, token: string, timeoutMs = 12000): Promise<unknown> {
@@ -119,7 +187,8 @@ async function httpGet(url: string, token: string, timeoutMs = 12000): Promise<u
     try {
         const res = await fetch(url, {
             headers: { Authorization: `Bearer ${token}` },
-            signal: ctrl.signal
+            signal: ctrl.signal,
+            redirect: 'error'
         });
         if (!res.ok)
             throw new Error(`HTTP ${res.status}`);
@@ -311,6 +380,7 @@ function cacheFromTokenUsage(resp: unknown, now: number, prev: MochiApiCache | n
         tokenUnlimited,
         tokenTotalUsedUsd: totalUsedUsd,
         tokenTotalUsedLocalDate: totalUsedUsd === null ? null : todayKey,
+        claudeSubscription: parseClaudeQuota(d.claude_subscription),
         subscriptionTotalUsd: firstNum(d.subscription_total_usd),
         subscriptionUsedUsd: firstNum(d.subscription_used_usd),
         subscriptionResetAt: toNum(d.subscription_reset_at),
@@ -348,11 +418,41 @@ async function cacheFromDashboard(cfg: MochiApiConfig, resp: unknown, now: numbe
         tokenUnlimited: toBool(d.token_unlimited),
         tokenTotalUsedUsd: totalUsedUsd,
         tokenTotalUsedLocalDate: totalUsedUsd === null ? null : localDateKey(now),
+        claudeSubscription: parseClaudeQuota(d.claude_subscription),
         subscriptionTotalUsd: firstNum(d.subscription_total_usd),
         subscriptionUsedUsd: firstNum(d.subscription_used_usd),
         subscriptionResetAt: toNum(d.subscription_reset_at),
         subscriptionUnlimited: toBool(d.subscription_unlimited)
     };
+}
+
+function validQuotaNumbers<K extends string>(values: Record<K, number | null>): values is Record<K, number> {
+    return Object.values(values).every(value => typeof value === 'number' && value >= 0);
+}
+
+function parseClaudeQuota(value: unknown): ClaudeQuotaSummary | null {
+    if (!isRecord(value))
+        return null;
+    if (value.status === 'none' || value.status === 'unavailable')
+        return { status: value.status, plans: [] };
+    if (value.status !== 'active' || !Array.isArray(value.plans))
+        return { status: 'unavailable', plans: [] };
+    const plans: ClaudePlanQuota[] = [];
+    for (const raw of value.plans) {
+        if (!isRecord(raw) || raw.group !== 'vip1_sub')
+            return { status: 'unavailable', plans: [] };
+        const numbers = {
+            id: toNum(raw.id), totalUsd: toNum(raw.total_usd), usedUsd: toNum(raw.used_usd),
+            remainingUsd: toNum(raw.remaining_usd), dailyTotalUsd: toNum(raw.daily_total_usd),
+            dailyUsedUsd: toNum(raw.daily_used_usd), dailyRemainingUsd: toNum(raw.daily_remaining_usd),
+            dailyResetAt: toNum(raw.daily_reset_at), resetAt: toNum(raw.reset_at), expiresAt: toNum(raw.expires_at)
+        };
+        if (!validQuotaNumbers(numbers)
+            || typeof raw.unlimited !== 'boolean' || typeof raw.daily_unlimited !== 'boolean')
+            return { status: 'unavailable', plans: [] };
+        plans.push({ ...numbers, unlimited: raw.unlimited, dailyUnlimited: raw.daily_unlimited });
+    }
+    return { status: plans.length ? 'active' : 'unavailable', plans };
 }
 
 async function fetchDirectBalance(cfg: MochiApiConfig): Promise<number | null> {
@@ -387,33 +487,42 @@ async function fetchDirectBalance(cfg: MochiApiConfig): Promise<number | null> {
 
 export async function fetchBalance(cfg: MochiApiConfig, previousCache?: MochiApiCache | null): Promise<MochiApiCache> {
     const now = Date.now();
-    const prev = previousCache === undefined ? readCache() : previousCache;
+    const id = mochiConnectionId(cfg);
+    const unavailable: ClaudeQuotaSummary = { status: 'unavailable', plans: [] };
+    const candidate = previousCache === undefined ? readCache(cfg) : previousCache;
+    const prev = candidate?.connectionId === id ? candidate : null;
     const errors: string[] = [];
 
     try {
         const resp = await httpGet(`${cfg.baseUrl}/api/usage/token/`, cfg.token);
-        return cacheFromTokenUsage(resp, now, prev);
+        return { ...cacheFromTokenUsage(resp, now, prev), connectionId: id };
     } catch (e) {
-        errors.push(`/api/usage/token/: ${e instanceof Error ? e.message : String(e)}`);
+        errors.push(`/api/usage/token/: ${(e instanceof Error ? e.message : String(e)).split(cfg.token).join('[redacted]')}`);
     }
 
     try {
         const resp = await httpGet(`${cfg.baseUrl}/api/user/dashboard/balance`, cfg.token);
-        return await cacheFromDashboard(cfg, resp, now);
+        const cached = await cacheFromDashboard(cfg, resp, now);
+        return { ...cached, claudeSubscription: cached.claudeSubscription ?? unavailable, connectionId: id };
     } catch (e) {
-        errors.push(`/api/user/dashboard/balance: ${e instanceof Error ? e.message : String(e)}`);
+        errors.push(`/api/user/dashboard/balance: ${(e instanceof Error ? e.message : String(e)).split(cfg.token).join('[redacted]')}`);
     }
 
     const directBalanceUsd = await fetchDirectBalance(cfg);
     if (directBalanceUsd !== null) {
         return {
             ...emptyCache(now, true),
+            connectionId: id,
+            claudeSubscription: unavailable,
             directBalanceUsd
         };
     }
 
     return {
-        fetchedAt: now,
+        fetchedAt: prev?.fetchedAt ?? now,
+        lastAttemptAt: now,
+        connectionId: id,
+        claudeSubscription: prev?.claudeSubscription ?? unavailable,
         ok: false,
         directBalanceUsd: prev?.directBalanceUsd ?? null,
         accountQuotaUsd: prev?.accountQuotaUsd ?? null,
@@ -431,8 +540,19 @@ export async function fetchBalance(cfg: MochiApiConfig, previousCache?: MochiApi
     };
 }
 
+function elapsedClaudeWindow(cache: MochiApiCache | null): number | null {
+    const now = Date.now() / 1000;
+    const deadlines = cache?.claudeSubscription?.plans.flatMap(plan => [
+        plan.dailyUnlimited ? 0 : plan.dailyResetAt, plan.resetAt, plan.expiresAt
+    ]).filter(deadline => deadline > 0 && deadline <= now) ?? [];
+    return deadlines.length ? Math.max(...deadlines) * 1000 : null;
+}
+
 export function maybeRefreshInBackground(cfg: MochiApiConfig, cache: MochiApiCache | null): void {
-    const stale = !cache || Date.now() - cache.fetchedAt > cfg.refreshIntervalSec * 1000;
+    const window = elapsedClaudeWindow(cache);
+    const attempted = cache?.lastAttemptAt ?? cache?.fetchedAt ?? 0;
+    const stale = !cache || (window !== null && attempted < window)
+        || Date.now() - attempted > cfg.refreshIntervalSec * 1000;
     if (!stale)
         return;
     if (process.env.CCSL_MOCHIAPI_REFRESHING === '1')
@@ -520,7 +640,8 @@ export function viewFromCache(cache: MochiApiCache | null, cfg: MochiApiConfig |
         ? cache.subscriptionResetAt
         : null;
 
-    const stale = cfg !== null && Date.now() - cache.fetchedAt > cfg.refreshIntervalSec * 2000;
+    const stale = !cache.ok || elapsedClaudeWindow(cache) !== null
+        || (cfg !== null && Date.now() - cache.fetchedAt > cfg.refreshIntervalSec * 2000);
 
     return {
         balanceUsd,
@@ -557,7 +678,9 @@ export function formatResetCountdown(resetAtSec: number, nowMs: number = Date.no
 }
 
 export async function refreshCli(): Promise<void> {
-    const cfg = loadMochiConfig();
+    const hasSessionConnection = process.env.ANTHROPIC_BASE_URL !== undefined
+        || process.env.ANTHROPIC_AUTH_TOKEN !== undefined || process.env.ANTHROPIC_API_KEY !== undefined;
+    const cfg = loadMochiConfig() ?? (hasSessionConnection ? null : loadSavedMochiConfig());
     if (!cfg)
         return;
     const cache = await fetchBalance(cfg);

@@ -34,22 +34,22 @@ export class MochiApiDailySpendWidget implements Widget {
         const labeled = !item.rawValue;
 
         if (context.isPreview) {
-            return labeled ? 'Today: $0.247' : '$0.247';
+            return labeled ? '今日消耗 $0.247' : '$0.247';
         }
 
         const cfg = loadMochiConfig();
         if (!cfg) {
-            return labeled ? 'Today: cfg?' : 'cfg?';
+            return null;
         }
-        const cache = readCache();
+        const cache = readCache(cfg);
         maybeRefreshInBackground(cfg, cache);
         const view = viewFromCache(cache, cfg);
         if (!view)
-            return labeled ? 'Today: ...' : '...';
+            return labeled ? '今日消耗 ...' : '...';
 
         const body = view.todayUsedUsd === null ? '?' : fmtUsd(view.todayUsedUsd);
         const decorated = view.stale ? `${body}*` : body;
-        return labeled ? `Today: ${decorated}` : decorated;
+        return labeled ? `今日消耗 ${decorated}` : decorated;
     }
 
     supportsRawValue(): boolean { return true; }

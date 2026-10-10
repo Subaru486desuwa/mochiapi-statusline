@@ -9,6 +9,7 @@ import {
 import type { MochiApiCache } from '../mochiapi';
 import {
     fetchBalance,
+    mochiConnectionId,
     viewFromCache
 } from '../mochiapi';
 import { __mochiApiSetupTest } from '../mochiapi-setup';
@@ -21,6 +22,7 @@ const cfg = {
 
 function cache(overrides: Partial<MochiApiCache>): MochiApiCache {
     return {
+        connectionId: mochiConnectionId(cfg),
         fetchedAt: Date.now(),
         ok: true,
         directBalanceUsd: null,

@@ -17,6 +17,7 @@ import {
     DEFAULT_SETTINGS,
     type Settings
 } from '../../types/Settings';
+import * as mochiapi from '../mochiapi';
 
 const MOCK_HOME_DIR = '/tmp/mochiapi-statusline-config-test-home';
 const ORIGINAL_CLAUDE_CONFIG_DIR = process.env.CLAUDE_CONFIG_DIR;
@@ -48,6 +49,7 @@ describe('config utilities', () => {
     });
 
     beforeEach(() => {
+        vi.spyOn(mochiapi, 'hasClaudeQuotaContract').mockReturnValue(true);
         fs.rmSync(MOCK_HOME_DIR, { recursive: true, force: true });
         process.env.CLAUDE_CONFIG_DIR = getClaudeConfigDir();
         const { settingsPath } = getSettingsPaths();
@@ -56,7 +58,7 @@ describe('config utilities', () => {
     });
 
     afterEach(() => {
-        consoleErrorSpy.mockRestore();
+        vi.restoreAllMocks();
     });
 
     afterAll(() => {
@@ -155,7 +157,7 @@ describe('config utilities', () => {
             updatemessage?: { message?: string };
         };
         expect(migrated.version).toBe(CURRENT_VERSION);
-        expect(migrated.updatemessage?.message).toContain('v2.0.2');
+        expect(settings.lines.flat().map(item => item.type)).toContain('mochiapi-subscription-balance');
         expect(consoleErrorSpy).not.toHaveBeenCalled();
     });
 

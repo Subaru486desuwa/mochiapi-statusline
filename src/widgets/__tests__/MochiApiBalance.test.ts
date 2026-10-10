@@ -103,6 +103,6 @@ describe('MochiApiBalanceWidget', () => {
             DEFAULT_SETTINGS
         );
 
-        expect(rendered).toBe('Mochi: $8.42');
+        expect(rendered).toBe('钱包 $8.42');
     });
 });

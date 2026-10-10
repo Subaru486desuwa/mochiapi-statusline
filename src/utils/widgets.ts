@@ -1,7 +1,6 @@
 import type { Settings } from '../types/Settings';
 import type {
     Widget,
-    WidgetItem,
     WidgetItemType
 } from '../types/Widget';
 
@@ -13,27 +12,16 @@ import {
     LAYOUT_WIDGET_MANIFEST,
     WIDGET_MANIFEST
 } from './widget-manifest';
+import { resolveLegacyWidgetType } from './widget-type-aliases';
 
 export { getMatchSegments } from './fuzzy';
+export { LEGACY_WIDGET_TYPE_ALIASES, resolveLegacyWidgetType, upgradeLegacyWidgetTypes } from './widget-type-aliases';
 
 // Create widget registry
 const widgetRegistry = new Map<WidgetItemType, Widget>(
     WIDGET_MANIFEST.map((entry): [WidgetItemType, Widget] => [entry.type, entry.create()])
 );
 const layoutWidgetTypes = new Set<WidgetItemType>(LAYOUT_WIDGET_MANIFEST.map(entry => entry.type));
-
-export const LEGACY_WIDGET_TYPE_ALIASES: Record<string, WidgetItemType> = { 'git-pr': 'git-review' };
-
-export function resolveLegacyWidgetType(type: WidgetItemType): WidgetItemType {
-    return LEGACY_WIDGET_TYPE_ALIASES[type] ?? type;
-}
-
-export function upgradeLegacyWidgetTypes(lines: WidgetItem[][]): WidgetItem[][] {
-    return lines.map(line => line.map((item) => {
-        const resolved = resolveLegacyWidgetType(item.type);
-        return resolved === item.type ? item : { ...item, type: resolved };
-    }));
-}
 
 export function getWidget(type: WidgetItemType): Widget | null {
     return widgetRegistry.get(resolveLegacyWidgetType(type)) ?? null;

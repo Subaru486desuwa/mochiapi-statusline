@@ -5,8 +5,8 @@ import type {
     WidgetEditorDisplay,
     WidgetItem
 } from '../types/Widget';
+import { formatClaudeQuota } from '../utils/claude-quota-display';
 import {
-    formatResetCountdown,
     loadMochiConfig,
     maybeRefreshInBackground,
     readCache,
@@ -35,16 +35,16 @@ export class MochiApiSubscriptionWidget implements Widget {
         const labeled = !item.rawValue;
 
         if (context.isPreview) {
-            const preview = '余额 $1.54 · 今日 $0.277 · 订阅 4% · 5d12h';
+            const preview = '余额 $1.54 · 今日 $0.277 · Claude 日余 $8/$20 · 总余 $80/$100';
             return labeled ? `Mochi: ${preview}` : preview;
         }
 
         const cfg = loadMochiConfig();
         if (!cfg) {
-            return labeled ? 'Mochi: cfg?' : 'cfg?';
+            return null;
         }
 
-        const cache = readCache();
+        const cache = readCache(cfg);
         maybeRefreshInBackground(cfg, cache);
         const view = viewFromCache(cache, cfg);
         if (!view)
@@ -54,19 +54,9 @@ export class MochiApiSubscriptionWidget implements Widget {
             ? fmtUsd(view.balanceUsd)
             : (view.unlimited ? '∞' : '?');
         const today = view.todayUsedUsd === null ? '?' : fmtUsd(view.todayUsedUsd);
-        let subscription: string;
-        if (view.subscriptionUnlimited) {
-            subscription = '∞';
-        } else if (view.hasSubscription && view.subscriptionUsedPct !== null) {
-            const pct = `${view.subscriptionUsedPct}%`;
-            subscription = view.subscriptionResetAt !== null
-                ? `${pct} · ${formatResetCountdown(view.subscriptionResetAt)}`
-                : pct;
-        } else {
-            subscription = '-';
-        }
+        const subscription = formatClaudeQuota(cache?.claudeSubscription, item);
 
-        const body = `余额 ${balance} · 今日 ${today} · 订阅 ${subscription}`;
+        const body = `余额 ${balance} · 今日 ${today} · Claude ${subscription}`;
         const decorated = view.stale ? `${body}*` : body;
         return labeled ? `Mochi: ${decorated}` : decorated;
     }

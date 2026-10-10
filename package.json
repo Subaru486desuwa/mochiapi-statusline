@@ -1,14 +1,16 @@
 {
   "name": "mochiapi-statusline",
-  "version": "0.2.1",
-  "description": "Claude Code status line for MochiAPI users — account balance, today's spend, model, context, and git in your terminal",
+  "version": "0.3.0",
+  "description": "Claude Code status line for MochiAPI users \u2014 account balance, today's spend, model, context, and git in your terminal",
   "module": "src/mochiapi-statusline.ts",
   "type": "module",
   "bin": {
     "mochiapi-statusline": "dist/mochiapi-statusline.js"
   },
   "files": [
-    "dist/"
+    "dist/",
+    "LICENSE",
+    "NOTICE"
   ],
   "scripts": {
     "start": "bun run src/mochiapi-statusline.ts",
@@ -16,7 +18,8 @@
     "postbuild": "bun run scripts/replace-version.ts",
     "example": "cat scripts/payload.example.json | bun start",
     "lint": "bun tsc --noEmit && eslint . --config eslint.config.js --max-warnings=0",
-    "lint:fix": "bun tsc --noEmit && eslint . --config eslint.config.js --max-warnings=0 --fix"
+    "lint:fix": "bun tsc --noEmit && eslint . --config eslint.config.js --max-warnings=0 --fix",
+    "test": "vitest run"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
