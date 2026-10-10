@@ -1,3 +1,4 @@
+import * as childProcess from 'child_process';
 import * as fs from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
@@ -32,6 +33,7 @@ describe('automatic Mochi layout upgrade', () => {
         vi.stubEnv('XDG_CACHE_HOME', cacheDirectory);
         vi.stubEnv('ANTHROPIC_BASE_URL', cfg.baseUrl);
         vi.stubEnv('ANTHROPIC_AUTH_TOKEN', cfg.token);
+        vi.stubEnv('CCSL_MOCHIAPI_REFRESHING', '1');
         mochiapi.writeCache(readyCache());
     });
     afterEach(() => {
@@ -54,6 +56,26 @@ describe('automatic Mochi layout upgrade', () => {
             expect(fs.readdirSync(dir)).toEqual(['settings.json']);
         } finally { initConfigPath(); fs.rmSync(dir, { recursive: true, force: true }); }
     });
+    it('starts one capability refresh even when the old layout has no Mochi widgets', async () => {
+        fs.rmSync(cacheDirectory, { recursive: true, force: true });
+        vi.stubEnv('CCSL_MOCHIAPI_REFRESHING', '0');
+        const child = new childProcess.ChildProcess();
+        vi.spyOn(child, 'unref').mockImplementation(() => undefined);
+        const spawned = vi.spyOn(childProcess, 'spawn').mockReturnValue(child);
+        const dir = fs.mkdtempSync(join(tmpdir(), 'mochi-cold-capability-'));
+        const file = join(dir, 'settings.json');
+        fs.writeFileSync(file, JSON.stringify({ version: 3, lines: [[{ id: 'old', type: 'model' }]] }));
+        initConfigPath(file);
+        try {
+            expect((await loadSettings()).version).toBe(3);
+            expect((await loadSettings()).version).toBe(3);
+            expect(spawned).toHaveBeenCalledTimes(1);
+            expect(spawned.mock.calls[0]?.[1]).toContain('--mochiapi-refresh');
+            mochiapi.writeCache(readyCache());
+            expect((await loadSettings()).version).toBe(4);
+        } finally { initConfigPath(); fs.rmSync(dir, { recursive: true, force: true }); }
+    });
+
     it('does not upgrade from stale capability evidence or another token cache', () => {
         mochiapi.writeCache({ ...readyCache(), fetchedAt: Date.now() - 120_000 });
         expect(mochiapi.hasClaudeQuotaContract()).toBe(false);

@@ -43114,8 +43114,11 @@ function readCache(cfg = loadMochiConfig()) {
 }
 function hasClaudeQuotaContract() {
   const cfg = loadMochiConfig();
+  if (!cfg)
+    return false;
   const cache = readCache(cfg);
-  if (!cfg || !cache?.ok || !cache.claudeSubscription)
+  maybeRefreshInBackground(cfg, cache);
+  if (!cache?.ok || !cache.claudeSubscription)
     return false;
   const age = Date.now() - cache.fetchedAt;
   return age >= 0 && age <= Math.max(60, cfg.refreshIntervalSec * 2) * 1000;
@@ -43412,12 +43415,20 @@ function maybeRefreshInBackground(cfg, cache) {
   const entry = process.argv[1];
   if (!entry)
     return;
-  const child = spawn(argv0, [entry, "--mochiapi-refresh"], {
-    detached: true,
-    stdio: "ignore",
-    env: { ...process.env, CCSL_MOCHIAPI_REFRESHING: "1" }
-  });
-  child.unref();
+  try {
+    const connectionId = mochiConnectionId(cfg);
+    const previous = cache?.connectionId === connectionId ? cache : emptyCache(Date.now(), false);
+    writeCache({ ...previous, connectionId, lastAttemptAt: Date.now() });
+    const child = spawn(argv0, [entry, "--mochiapi-refresh"], {
+      detached: true,
+      stdio: "ignore",
+      env: { ...process.env, CCSL_MOCHIAPI_REFRESHING: "1" }
+    });
+    child.on("error", () => {
+      return;
+    });
+    child.unref();
+  } catch {}
 }
 function viewFromCache(cache, cfg) {
   if (!cache)
