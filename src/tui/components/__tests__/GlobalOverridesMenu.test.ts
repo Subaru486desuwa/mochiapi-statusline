@@ -57,12 +57,6 @@ function createMockStdout(): CapturedWriteStream {
     });
 }
 
-function flushInk() {
-    return new Promise((resolve) => {
-        setTimeout(resolve, 25);
-    });
-}
-
 describe('GlobalOverridesMenu', () => {
     afterEach(() => {
         vi.restoreAllMocks();
@@ -92,9 +86,10 @@ describe('GlobalOverridesMenu', () => {
         );
 
         try {
-            await flushInk();
-            expect(stdout.getOutput()).toContain('Minimalist Mode:');
-            expect(stdout.getOutput()).toContain('✗ Disabled');
+            await vi.waitFor(() => {
+                expect(stdout.getOutput()).toContain('Minimalist Mode:');
+                expect(stdout.getOutput()).toContain('✗ Disabled');
+            });
         } finally {
             instance.unmount();
             instance.cleanup();
@@ -128,11 +123,13 @@ describe('GlobalOverridesMenu', () => {
         );
 
         try {
-            await flushInk();
+            await vi.waitFor(() => {
+                expect(stdin.listenerCount('readable')).toBeGreaterThan(0);
+            });
             stdin.write('m');
-            await flushInk();
-
-            expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ minimalistMode: true }));
+            await vi.waitFor(() => {
+                expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ minimalistMode: true }));
+            });
         } finally {
             instance.unmount();
             instance.cleanup();
@@ -166,11 +163,13 @@ describe('GlobalOverridesMenu', () => {
         );
 
         try {
-            await flushInk();
+            await vi.waitFor(() => {
+                expect(stdin.listenerCount('readable')).toBeGreaterThan(0);
+            });
             stdin.write('m');
-            await flushInk();
-
-            expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ minimalistMode: false }));
+            await vi.waitFor(() => {
+                expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ minimalistMode: false }));
+            });
         } finally {
             instance.unmount();
             instance.cleanup();

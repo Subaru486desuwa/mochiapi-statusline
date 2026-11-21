@@ -81,9 +81,14 @@ describe('InstallMenu', () => {
         );
 
         try {
-            await flushInk();
+            await vi.waitFor(() => {
+                expect(stdin.listenerCount('readable')).toBeGreaterThan(0);
+            });
 
             stdin.write('\u001B');
+            await vi.waitFor(() => {
+                expect(onCancel).toHaveBeenCalledTimes(1);
+            });
             await flushInk();
 
             expect(onCancel).toHaveBeenCalledTimes(1);
@@ -120,6 +125,9 @@ describe('InstallMenu', () => {
         );
 
         try {
+            await vi.waitFor(() => {
+                expect(stdout.getOutput()).toContain('▶  bunx - Bun Package Execute');
+            });
             await flushInk();
 
             expect(stdout.getOutput()).toContain('▶  bunx - Bun Package Execute');

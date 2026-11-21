@@ -137,17 +137,22 @@ describe('RefreshIntervalMenu', () => {
         );
 
         try {
-            await flushInk();
+            await vi.waitFor(() => {
+                expect(stdin.listenerCount('readable')).toBeGreaterThan(0);
+            });
             stdin.write('\r');
+            await vi.waitFor(() => {
+                expect(stdout.getOutput()).toContain('Enter refresh interval in seconds (1-60):');
+            });
             await flushInk();
 
             expect(stdout.getOutput()).toContain('Enter refresh interval in seconds (1-60):');
             expect(stdout.getOutput()).not.toContain('10s');
 
             stdin.write('\r');
-            await flushInk();
-
-            expect(onUpdate).toHaveBeenCalledWith(null);
+            await vi.waitFor(() => {
+                expect(onUpdate).toHaveBeenCalledWith(null);
+            });
         } finally {
             instance.unmount();
             instance.cleanup();
