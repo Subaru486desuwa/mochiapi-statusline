@@ -62,12 +62,6 @@ function createMockStdout(): CapturedWriteStream {
     });
 }
 
-function flushInk() {
-    return new Promise((resolve) => {
-        setTimeout(resolve, 25);
-    });
-}
-
 describe('PowerlineSetup helpers', () => {
     afterEach(() => {
         vi.restoreAllMocks();
@@ -162,11 +156,15 @@ describe('PowerlineSetup helpers', () => {
         );
 
         try {
-            await flushInk();
-            expect(stdout.getOutput()).toContain('Continue Theme:');
+            await vi.waitFor(() => {
+                expect(stdin.listenerCount('readable')).toBeGreaterThan(0);
+                expect(stdout.getOutput()).toContain('Continue Theme:');
+            });
 
             stdin.write('c');
-            await flushInk();
+            await vi.waitFor(() => {
+                expect(onUpdate).toHaveBeenCalled();
+            });
 
             const updatedSettings = onUpdate.mock.calls[0]?.[0];
             expect(updatedSettings).toBeDefined();
@@ -221,11 +219,15 @@ describe('PowerlineSeparatorEditor', () => {
         );
 
         try {
-            await flushInk();
-            expect(stdout.getOutput()).toContain('(a)dd');
+            await vi.waitFor(() => {
+                expect(stdin.listenerCount('readable')).toBeGreaterThan(0);
+                expect(stdout.getOutput()).toContain('(a)dd');
+            });
 
             stdin.write('a');
-            await flushInk();
+            await vi.waitFor(() => {
+                expect(onUpdate).toHaveBeenCalled();
+            });
 
             const updatedSettings = onUpdate.mock.calls[0]?.[0];
             expect(updatedSettings).toBeDefined();

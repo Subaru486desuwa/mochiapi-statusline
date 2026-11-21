@@ -134,19 +134,29 @@ describe('TerminalWidthMenu helpers', () => {
         );
 
         try {
-            await flushInk();
+            await vi.waitFor(() => {
+                expect(stdin.listenerCount('readable')).toBeGreaterThan(0);
+                expect(stdout.getOutput()).toContain('▶  Full width always');
+            });
             stdin.write('\u001B[B');
-            await flushInk();
+            await vi.waitFor(() => {
+                expect(stdout.getOutput()).toContain('▶  Full width minus 40');
+            });
             stdin.write('\u001B[B');
-            await flushInk();
+            await vi.waitFor(() => {
+                expect(stdout.getOutput()).toContain('▶  Full width until compact');
+            });
             stdin.write('\r');
-            await flushInk();
-
-            expect(stdout.getOutput()).toContain('Enter compact threshold (1-99):');
+            await vi.waitFor(() => {
+                expect(stdout.getOutput()).toContain('Enter compact threshold (1-99):');
+            });
 
             stdout.clearOutput();
 
             stdin.write('\r');
+            await vi.waitFor(() => {
+                expect(stdout.getOutput()).toContain('▶  Full width until compact');
+            });
             await flushInk();
 
             expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({

@@ -109,10 +109,10 @@ describe('UsageLocaleEditor', () => {
         const rendered = renderEditor({ id: 'reset', type: 'reset-timer' });
 
         try {
-            await flushInk();
-
-            const output = getPlainOutput(rendered.stdout.getOutput());
-            expect(output).toMatch(/\n\nShowing \d+-\d+ of \d+/);
+            await vi.waitFor(() => {
+                const output = getPlainOutput(rendered.stdout.getOutput());
+                expect(output).toMatch(/\n\nShowing \d+-\d+ of \d+/);
+            });
         } finally {
             cleanupEditor(rendered);
         }
@@ -122,14 +122,19 @@ describe('UsageLocaleEditor', () => {
         const rendered = renderEditor({ id: 'reset', type: 'reset-timer' });
 
         try {
-            await flushInk();
+            await vi.waitFor(() => {
+                expect(rendered.stdin.listenerCount('readable')).toBeGreaterThan(0);
+            });
             rendered.stdin.write('japan');
-            await flushInk();
-
-            expect(rendered.stdout.getOutput()).toContain('ja-JP');
+            await vi.waitFor(() => {
+                expect(getPlainOutput(rendered.stdout.getOutput())).toContain('Search: japan');
+                expect(rendered.stdout.getOutput()).toContain('ja-JP');
+            });
 
             rendered.stdin.write('\r');
-            await flushInk();
+            await vi.waitFor(() => {
+                expect(rendered.onComplete).toHaveBeenCalledOnce();
+            });
 
             const updated = rendered.onComplete.mock.calls[0]?.[0] as WidgetItem | undefined;
             expect(updated?.metadata?.locale).toBe('ja-JP');
@@ -146,11 +151,19 @@ describe('UsageLocaleEditor', () => {
         });
 
         try {
-            await flushInk();
+            await vi.waitFor(() => {
+                expect(rendered.stdin.listenerCount('readable')).toBeGreaterThan(0);
+            });
             rendered.stdin.write('en-us');
-            await flushInk();
+            await vi.waitFor(() => {
+                const output = getPlainOutput(rendered.stdout.getOutput());
+                expect(output).toContain('Search: en-us');
+                expect(output).toMatch(/>\s+en-US/);
+            });
             rendered.stdin.write('\r');
-            await flushInk();
+            await vi.waitFor(() => {
+                expect(rendered.onComplete).toHaveBeenCalledOnce();
+            });
 
             const updated = rendered.onComplete.mock.calls[0]?.[0] as WidgetItem | undefined;
             expect(updated?.metadata?.locale).toBeUndefined();
@@ -168,14 +181,19 @@ describe('UsageLocaleEditor', () => {
         const rendered = renderEditor({ id: 'reset', type: 'reset-timer' });
 
         try {
-            await flushInk();
+            await vi.waitFor(() => {
+                expect(rendered.stdin.listenerCount('readable')).toBeGreaterThan(0);
+            });
             rendered.stdin.write('en-au');
-            await flushInk();
-
-            expect(rendered.stdout.getOutput()).toContain(`Use ${customLocale}`);
+            await vi.waitFor(() => {
+                expect(getPlainOutput(rendered.stdout.getOutput())).toContain('Search: en-au');
+                expect(rendered.stdout.getOutput()).toContain(`Use ${customLocale}`);
+            });
 
             rendered.stdin.write('\r');
-            await flushInk();
+            await vi.waitFor(() => {
+                expect(rendered.onComplete).toHaveBeenCalledOnce();
+            });
 
             const updated = rendered.onComplete.mock.calls[0]?.[0] as WidgetItem | undefined;
             expect(updated?.metadata?.locale).toBe(customLocale);
@@ -188,8 +206,13 @@ describe('UsageLocaleEditor', () => {
         const rendered = renderEditor({ id: 'reset', type: 'reset-timer' });
 
         try {
-            await flushInk();
+            await vi.waitFor(() => {
+                expect(rendered.stdin.listenerCount('readable')).toBeGreaterThan(0);
+            });
             rendered.stdin.write('\u001B');
+            await vi.waitFor(() => {
+                expect(rendered.onCancel).toHaveBeenCalledOnce();
+            });
             await flushInk();
 
             expect(rendered.onCancel).toHaveBeenCalledOnce();
