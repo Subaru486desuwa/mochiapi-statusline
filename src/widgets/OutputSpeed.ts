@@ -27,7 +27,6 @@ export class OutputSpeedWidget implements Widget {
     }
 
     render(item: WidgetItem, context: RenderContext, settings: Settings): string | null {
-        void settings;
         return renderSpeedWidgetValue('output', item, context);
     }
 

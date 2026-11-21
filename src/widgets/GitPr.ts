@@ -139,7 +139,6 @@ export class GitPrWidget implements Widget {
     }
 
     render(item: WidgetItem, context: RenderContext, settings: Settings): string | null {
-        void settings;
         const hideNoGit = isHideNoGitEnabled(item);
         const showStatus = !isMetadataFlagEnabled(item, HIDE_STATUS_KEY);
         const showTitle = !isMetadataFlagEnabled(item, HIDE_TITLE_KEY);

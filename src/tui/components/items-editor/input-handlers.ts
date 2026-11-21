@@ -448,7 +448,6 @@ export function handleNormalInputMode({
 
             if (nextMergeState === undefined) {
                 const { merge, ...rest } = currentWidget;
-                void merge; // Intentionally unused
                 newWidgets[selectedIndex] = rest;
             } else {
                 newWidgets[selectedIndex] = { ...currentWidget, merge: nextMergeState };

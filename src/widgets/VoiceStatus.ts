@@ -30,7 +30,6 @@ function getFormat(item: WidgetItem): VoiceFormat {
 function setFormat(item: WidgetItem, format: VoiceFormat): WidgetItem {
     if (format === DEFAULT_FORMAT) {
         const { format: removedFormat, ...restMetadata } = item.metadata ?? {};
-        void removedFormat;
 
         return {
             ...item,
@@ -63,7 +62,6 @@ function toggleNerdFont(item: WidgetItem): WidgetItem {
     }
 
     const { [NERD_FONT_METADATA_KEY]: removedNerdFont, ...restMetadata } = item.metadata ?? {};
-    void removedNerdFont;
 
     return {
         ...item,
