@@ -26,7 +26,6 @@ function getFormat(item: WidgetItem): CompactionCounterFormat {
 
 function removeNerdFont(item: WidgetItem): WidgetItem {
     const { [NERD_FONT_METADATA_KEY]: removedNerdFont, ...restMetadata } = item.metadata ?? {};
-    void removedNerdFont;
 
     return {
         ...item,
@@ -37,7 +36,6 @@ function removeNerdFont(item: WidgetItem): WidgetItem {
 function setFormat(item: WidgetItem, format: CompactionCounterFormat): WidgetItem {
     if (format === DEFAULT_FORMAT) {
         const { format: removedFormat, ...restMetadata } = item.metadata ?? {};
-        void removedFormat;
 
         return {
             ...item,
@@ -46,7 +44,6 @@ function setFormat(item: WidgetItem, format: CompactionCounterFormat): WidgetIte
     }
 
     const { [NERD_FONT_METADATA_KEY]: removedNerdFont, ...restMetadata } = item.metadata ?? {};
-    void removedNerdFont;
 
     return {
         ...item,

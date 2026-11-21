@@ -27,7 +27,6 @@ export class TotalSpeedWidget implements Widget {
     }
 
     render(item: WidgetItem, context: RenderContext, settings: Settings): string | null {
-        void settings;
         return renderSpeedWidgetValue('total', item, context);
     }
 

@@ -132,9 +132,6 @@ export class GitRootDirWidget implements Widget {
             ...restMetadata
         } = item.metadata ?? {};
 
-        void removedIdeLink;
-        void removedLegacyLink;
-
         return {
             ...item,
             metadata: nextMode ? {

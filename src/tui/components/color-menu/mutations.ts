@@ -45,9 +45,6 @@ export function resetWidgetStyling(widgets: WidgetItem[], widgetId: string): Wid
             bold,
             ...restWidget
         } = widget;
-        void color; // Intentionally unused
-        void backgroundColor; // Intentionally unused
-        void bold; // Intentionally unused
         return restWidget;
     });
 }
@@ -60,9 +57,6 @@ export function clearAllWidgetStyling(widgets: WidgetItem[]): WidgetItem[] {
             bold,
             ...restWidget
         } = widget;
-        void color; // Intentionally unused
-        void backgroundColor; // Intentionally unused
-        void bold; // Intentionally unused
         return restWidget;
     });
 }
