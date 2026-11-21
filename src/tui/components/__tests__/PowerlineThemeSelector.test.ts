@@ -136,10 +136,16 @@ describe('PowerlineThemeSelector helpers', () => {
         );
 
         try {
+            await vi.waitFor(() => {
+                expect(stdin.listenerCount('readable')).toBeGreaterThan(0);
+            });
             await flushInk();
             expect(onUpdate).not.toHaveBeenCalled();
 
             stdin.write('\u001B[B');
+            await vi.waitFor(() => {
+                expect(onUpdate).toHaveBeenCalledTimes(1);
+            });
             await flushInk();
 
             expect(onUpdate).toHaveBeenCalledTimes(1);

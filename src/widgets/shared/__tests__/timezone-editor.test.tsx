@@ -108,10 +108,10 @@ describe('UsageTimezoneEditor', () => {
         const rendered = renderEditor({ id: 'reset', type: 'reset-timer' });
 
         try {
-            await flushInk();
-
-            const output = getPlainOutput(rendered.stdout.getOutput());
-            expect(output).toMatch(/IANA timezone\n\nShowing \d+-\d+ of \d+/);
+            await vi.waitFor(() => {
+                const output = getPlainOutput(rendered.stdout.getOutput());
+                expect(output).toMatch(/IANA timezone\n\nShowing \d+-\d+ of \d+/);
+            });
         } finally {
             cleanupEditor(rendered);
         }
@@ -125,14 +125,19 @@ describe('UsageTimezoneEditor', () => {
         const rendered = renderEditor({ id: 'reset', type: 'reset-timer' });
 
         try {
-            await flushInk();
+            await vi.waitFor(() => {
+                expect(rendered.stdin.listenerCount('readable')).toBeGreaterThan(0);
+            });
             rendered.stdin.write('tokyo');
-            await flushInk();
-
-            expect(rendered.stdout.getOutput()).toContain('Asia/Tokyo');
+            await vi.waitFor(() => {
+                expect(getPlainOutput(rendered.stdout.getOutput())).toContain('Search: tokyo');
+                expect(rendered.stdout.getOutput()).toContain('Asia/Tokyo');
+            });
 
             rendered.stdin.write('\r');
-            await flushInk();
+            await vi.waitFor(() => {
+                expect(rendered.onComplete).toHaveBeenCalledOnce();
+            });
 
             const updated = rendered.onComplete.mock.calls[0]?.[0] as WidgetItem | undefined;
             expect(updated?.metadata?.timezone).toBe('Asia/Tokyo');
@@ -149,11 +154,19 @@ describe('UsageTimezoneEditor', () => {
         });
 
         try {
-            await flushInk();
+            await vi.waitFor(() => {
+                expect(rendered.stdin.listenerCount('readable')).toBeGreaterThan(0);
+            });
             rendered.stdin.write('utc');
-            await flushInk();
+            await vi.waitFor(() => {
+                const output = getPlainOutput(rendered.stdout.getOutput());
+                expect(output).toContain('Search: utc');
+                expect(output).toMatch(/>\s+UTC/);
+            });
             rendered.stdin.write('\r');
-            await flushInk();
+            await vi.waitFor(() => {
+                expect(rendered.onComplete).toHaveBeenCalledOnce();
+            });
 
             const updated = rendered.onComplete.mock.calls[0]?.[0] as WidgetItem | undefined;
             expect(updated?.metadata?.timezone).toBeUndefined();
@@ -166,8 +179,13 @@ describe('UsageTimezoneEditor', () => {
         const rendered = renderEditor({ id: 'reset', type: 'reset-timer' });
 
         try {
-            await flushInk();
+            await vi.waitFor(() => {
+                expect(rendered.stdin.listenerCount('readable')).toBeGreaterThan(0);
+            });
             rendered.stdin.write('\u001B');
+            await vi.waitFor(() => {
+                expect(rendered.onCancel).toHaveBeenCalledOnce();
+            });
             await flushInk();
 
             expect(rendered.onCancel).toHaveBeenCalledOnce();
